@@ -8,7 +8,7 @@
 
 package types
 
-import "ashokshau/tgmusic/src/vc/ntgcalls"
+import "suraj08832/tgmusic/src/vc/ntgcalls"
 
 type PendingConnection struct {
 	MediaDescription ntgcalls.MediaDescription

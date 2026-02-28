@@ -9,8 +9,8 @@
 package ubot
 
 import (
-	"ashokshau/tgmusic/src/vc/ntgcalls"
-	"ashokshau/tgmusic/src/vc/ubot/types"
+	"suraj08832/tgmusic/src/vc/ntgcalls"
+	"suraj08832/tgmusic/src/vc/ubot/types"
 	"sync"
 
 	tg "github.com/amarnathcjd/gogram/telegram"

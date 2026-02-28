@@ -9,7 +9,7 @@
 package db
 
 import (
-	"ashokshau/tgmusic/src/utils"
+	"suraj08832/tgmusic/src/utils"
 	"context"
 	"crypto/rand"
 	"fmt"

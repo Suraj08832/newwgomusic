@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/core/dl"
+	"suraj08832/tgmusic/src/core/db"
+	"suraj08832/tgmusic/src/core/dl"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )

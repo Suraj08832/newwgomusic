@@ -9,8 +9,8 @@
 package handlers
 
 import (
-	"ashokshau/tgmusic/src/core"
-	"ashokshau/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/core"
+	"suraj08832/tgmusic/src/core/cache"
 	"fmt"
 	"time"
 

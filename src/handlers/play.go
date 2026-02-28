@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src/core"
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/core/dl"
-	"ashokshau/tgmusic/src/vc"
+	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src/core"
+	"suraj08832/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/core/db"
+	"suraj08832/tgmusic/src/core/dl"
+	"suraj08832/tgmusic/src/vc"
 
-	"ashokshau/tgmusic/src/utils"
+	"suraj08832/tgmusic/src/utils"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )

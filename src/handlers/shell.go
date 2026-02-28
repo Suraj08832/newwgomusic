@@ -9,7 +9,7 @@
 package handlers
 
 import (
-	"ashokshau/tgmusic/config"
+	"suraj08832/tgmusic/config"
 	"bytes"
 	"context"
 	"errors"

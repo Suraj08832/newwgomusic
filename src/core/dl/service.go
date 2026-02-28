@@ -9,8 +9,8 @@
 package dl
 
 import (
-	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src/utils"
+	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src/utils"
 	"context"
 )
 

@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/vc/ubot"
+	"suraj08832/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/vc/ubot"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )

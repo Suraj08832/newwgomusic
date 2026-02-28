@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"strings"
 
-	"ashokshau/tgmusic/src/core"
+	"suraj08832/tgmusic/src/core"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )

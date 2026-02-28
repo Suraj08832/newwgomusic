@@ -9,13 +9,13 @@
 package handlers
 
 import (
-	"ashokshau/tgmusic/config"
+	"suraj08832/tgmusic/config"
 	"fmt"
 	"strings"
 
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/vc"
+	"suraj08832/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/core/db"
+	"suraj08832/tgmusic/src/vc"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )

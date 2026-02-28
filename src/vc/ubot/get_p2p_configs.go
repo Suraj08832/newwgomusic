@@ -9,7 +9,7 @@
 package ubot
 
 import (
-	"ashokshau/tgmusic/src/vc/ubot/types"
+	"suraj08832/tgmusic/src/vc/ubot/types"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )

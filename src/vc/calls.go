@@ -21,11 +21,11 @@ package vc
 import "C"
 
 import (
-	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src/utils"
-	"ashokshau/tgmusic/src/vc/ntgcalls"
-	"ashokshau/tgmusic/src/vc/sessions"
-	"ashokshau/tgmusic/src/vc/ubot"
+	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src/utils"
+	"suraj08832/tgmusic/src/vc/ntgcalls"
+	"suraj08832/tgmusic/src/vc/sessions"
+	"suraj08832/tgmusic/src/vc/ubot"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -38,10 +38,10 @@ import (
 	"strings"
 	"time"
 
-	"ashokshau/tgmusic/src/core"
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/core/dl"
+	"suraj08832/tgmusic/src/core"
+	"suraj08832/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/core/db"
+	"suraj08832/tgmusic/src/core/dl"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )

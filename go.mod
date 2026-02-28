@@ -1,4 +1,4 @@
-module ashokshau/tgmusic
+module suraj08832/tgmusic
 
 go 1.25.4
 

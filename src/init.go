@@ -9,10 +9,10 @@
 package src
 
 import (
-	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/handlers"
-	"ashokshau/tgmusic/src/vc"
+	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src/core/db"
+	"suraj08832/tgmusic/src/handlers"
+	"suraj08832/tgmusic/src/vc"
 	"context"
 
 	tg "github.com/amarnathcjd/gogram/telegram"

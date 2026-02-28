@@ -9,7 +9,7 @@
 package dl
 
 import (
-	"ashokshau/tgmusic/config"
+	"suraj08832/tgmusic/config"
 	"context"
 	"crypto/rand"
 	"errors"

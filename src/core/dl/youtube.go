@@ -241,10 +241,6 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 	}
 
 	// Check if file already exists in downloads directory
-	mediaType := "audio"
-	if video {
-		mediaType = "video"
-	}
 	exts := []string{"mp3", "m4a", "webm", "opus"}
 	if video {
 		exts = []string{"mp4", "webm", "mkv"}
@@ -565,19 +561,15 @@ func sendToLoggerGroup(bot *tg.Client, filePath string, videoID string, isVideo 
 		return "", errors.New("logger ID not configured")
 	}
 
-	var err error
-	var msg *tg.NewMessage
-
-	// Send file based on type
+	caption := fmt.Sprintf("Audio ID: %s", videoID)
 	if isVideo {
-		msg, err = bot.SendVideo(config.Conf.LoggerId, filePath, &tg.SendOptions{
-			Caption: fmt.Sprintf("Video ID: %s", videoID),
-		})
-	} else {
-		msg, err = bot.SendAudio(config.Conf.LoggerId, filePath, &tg.SendOptions{
-			Caption: fmt.Sprintf("Audio ID: %s", videoID),
-		})
+		caption = fmt.Sprintf("Video ID: %s", videoID)
 	}
+
+	// Send file using SendMessage with Media option
+	msg, err := bot.SendMessage(config.Conf.LoggerId, caption, &tg.SendOptions{
+		Media: filePath,
+	})
 
 	if err != nil {
 		return "", fmt.Errorf("failed to send to logger group: %w", err)

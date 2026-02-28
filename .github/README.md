@@ -11,7 +11,7 @@
     <img src="https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge" alt="License">
   </a>
   <a href="https://github.com/Suraj08832/saregama_go_music/stargazers">
-    <img src="https://img.shields.io/github/stars/AshokShau/TgMusicBot?style=for-the-badge&color=ffd700&logo=github" alt="Stars">
+    <img src="https://img.shields.io/github/stars/suraj08832/tgmusicBot?style=for-the-badge&color=ffd700&logo=github" alt="Stars">
   </a>
 </p>
 

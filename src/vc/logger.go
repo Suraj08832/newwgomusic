@@ -9,8 +9,8 @@
 package vc
 
 import (
-	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src/utils"
+	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src/utils"
 	"fmt"
 
 	tg "github.com/amarnathcjd/gogram/telegram"

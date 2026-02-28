@@ -9,8 +9,8 @@
 package handlers
 
 import (
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
+	"suraj08832/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/core/db"
 	"fmt"
 	"io"
 	"os/exec"

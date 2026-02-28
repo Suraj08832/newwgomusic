@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"ashokshau/tgmusic/src/vc/ntgcalls"
+	"suraj08832/tgmusic/src/vc/ntgcalls"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )

@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"time"
 
-	"ashokshau/tgmusic/src/core/db"
+	"suraj08832/tgmusic/src/core/db"
 
 	"github.com/amarnathcjd/gogram/telegram"
 

@@ -9,15 +9,15 @@
 package main
 
 import (
-	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src"
+	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src"
 	"log"
 	"time"
 
 	"net/http"
 	_ "net/http/pprof"
 
-	"ashokshau/tgmusic/src/vc"
+	"suraj08832/tgmusic/src/vc"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )

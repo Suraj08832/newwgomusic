@@ -8,7 +8,7 @@
 
 package ubot
 
-import "ashokshau/tgmusic/src/vc/ntgcalls"
+import "suraj08832/tgmusic/src/vc/ntgcalls"
 
 func (ctx *Context) Record(chatId int64, mediaDescription ntgcalls.MediaDescription) error {
 

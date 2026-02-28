@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/vc"
+	"suraj08832/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/vc"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )

@@ -9,8 +9,8 @@
 package handlers
 
 import (
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/vc"
+	"suraj08832/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/vc"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
