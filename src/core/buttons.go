@@ -1,9 +1,9 @@
 /*
  * TgMusicBot - Telegram Music Bot
- *  Copyright (c) 2025-2026 Ashok Shau
+ *  Copyright (c) 2025-2026 Your Name
  *
  *  Licensed under GNU GPL v3
- *  See https://github.com/Suraj08832/saregama_go_music
+ *  See https://github.com/Suraj08832/newgomusic
  */
 
 package core
@@ -32,7 +32,7 @@ var DevsBtn = telegram.Button.Data("Devs", "help_devs")
 
 var PlaylistBtn = telegram.Button.Data("Playlist", "help_playlist")
 
-var SourceCodeBtn = telegram.Button.URL("Source Code", "https://github.com/Suraj08832/saregama_go_music")
+var SourceCodeBtn = telegram.Button.URL("Source Code", "https://github.com/Suraj08832/newgomusic")
 
 func SupportKeyboard() *telegram.ReplyInlineMarkup {
 	channelBtn := telegram.Button.URL("Updates", config.Conf.SupportChannel)

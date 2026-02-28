@@ -1,22 +1,22 @@
 /*
  * TgMusicBot - Telegram Music Bot
- *  Copyright (c) 2025-2026 Ashok Shau
+ *  Copyright (c) 2025-2026 Your Name
  *
  *  Licensed under GNU GPL v3
- *  See https://github.com/Suraj08832/saregama_go_music
+ *  See https://github.com/Suraj08832/newgomusic
  */
 
 package db
 
 import (
-	"ashokshau/tgmusic/config"
+	"suraj08832/tgmusic/config"
 	"context"
 	"errors"
 	"log"
 	"sync"
 	"time"
 
-	"ashokshau/tgmusic/src/core/cache"
+	"suraj08832/tgmusic/src/core/cache"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
