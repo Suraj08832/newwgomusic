@@ -3,7 +3,7 @@
  *  Copyright (c) 2025-2026 Ashok Shau
  *
  *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
+ *  See https://github.com/Suraj08832/saregama_go_music
  */
 
 package db
@@ -32,6 +32,7 @@ type Database struct {
 	userDB       *mongo.Collection
 	botDB        *mongo.Collection
 	playlistDB   *mongo.Collection
+	songCacheDB  *mongo.Collection
 	chatCache    *cache.Cache[map[string]interface{}]
 	botCache     *cache.Cache[map[string]interface{}]
 	userCache    *cache.Cache[map[string]interface{}]
@@ -60,13 +61,14 @@ func InitDatabase(ctx context.Context) error {
 	Instance = &Database{
 		client:     client,
 		DB:         db,
-		chatDB:     db.Collection("chats"),
-		userDB:     db.Collection("users"),
-		botDB:      db.Collection("bot"),
-		playlistDB: db.Collection("playlists"),
-		chatCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
-		botCache:   cache.NewCache[map[string]interface{}](20 * time.Minute),
-		userCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
+		chatDB:      db.Collection("chats"),
+		userDB:      db.Collection("users"),
+		botDB:       db.Collection("bot"),
+		playlistDB:  db.Collection("playlists"),
+		songCacheDB: db.Collection("song_cache"),
+		chatCache:   cache.NewCache[map[string]interface{}](20 * time.Minute),
+		botCache:    cache.NewCache[map[string]interface{}](20 * time.Minute),
+		userCache:   cache.NewCache[map[string]interface{}](20 * time.Minute),
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
@@ -587,6 +589,50 @@ func (db *Database) GetAllUsers(ctx context.Context) ([]int64, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+// ----------------- SONG CACHE -----------------
+
+// GetSongCache retrieves the logger message link for a video ID.
+// Returns the message link if found, empty string otherwise.
+func (db *Database) GetSongCache(ctx context.Context, videoID string, isVideo bool) (string, error) {
+	var result struct {
+		LoggerLink string `bson:"logger_link"`
+	}
+	
+	key := videoID
+	if isVideo {
+		key = videoID + "_video"
+	}
+	
+	err := db.songCacheDB.FindOne(ctx, bson.M{"_id": key}).Decode(&result)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return result.LoggerLink, nil
+}
+
+// SetSongCache stores the logger message link for a video ID.
+func (db *Database) SetSongCache(ctx context.Context, videoID string, loggerLink string, isVideo bool) error {
+	key := videoID
+	if isVideo {
+		key = videoID + "_video"
+	}
+	
+	_, err := db.songCacheDB.UpdateOne(ctx,
+		bson.M{"_id": key},
+		bson.M{"$set": bson.M{
+			"logger_link": loggerLink,
+			"video_id":    videoID,
+			"is_video":    isVideo,
+			"created_at":  time.Now(),
+		}},
+		options.UpdateOne().SetUpsert(true),
+	)
+	return err
 }
 
 // Close gracefully closes the database connection.

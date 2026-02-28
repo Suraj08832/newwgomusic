@@ -3,7 +3,7 @@
  *  Copyright (c) 2025-2026 Ashok Shau
  *
  *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
+ *  See https://github.com/Suraj08832/saregama_go_music
  */
 
 package dl
@@ -47,7 +47,9 @@ func downloadViaWrapper(ctx context.Context, cached *utils.CachedTrack, bot *tg.
 		return "", fmt.Errorf("get track info: %w", err)
 	}
 
-	path, err := wrapper.DownloadTrack(ctx, track, cached.IsVideo)
+	// Pass bot client through context for logger caching
+	ctxWithBot := context.WithValue(ctx, "bot", bot)
+	path, err := wrapper.DownloadTrack(ctxWithBot, track, cached.IsVideo)
 	if err != nil {
 		return "", err
 	}

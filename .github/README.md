@@ -7,10 +7,10 @@
   <a href="https://docs.docker.com/">
     <img src="https://img.shields.io/badge/Docker-Enabled-blue?style=for-the-badge&logo=docker" alt="Docker">
   </a>
-  <a href="https://github.com/AshokShau/TgMusicBot/blob/main/LICENSE">
+  <a href="https://github.com/Suraj08832/saregama_go_music/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge" alt="License">
   </a>
-  <a href="https://github.com/AshokShau/TgMusicBot/stargazers">
+  <a href="https://github.com/Suraj08832/saregama_go_music/stargazers">
     <img src="https://img.shields.io/github/stars/AshokShau/TgMusicBot?style=for-the-badge&color=ffd700&logo=github" alt="Stars">
   </a>
 </p>
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-    <a href="https://heroku.com/deploy?template=https://github.com/AshokShau/TgMusicBot">
+    <a href="https://heroku.com/deploy?template=https://github.com/Suraj08832/saregama_go_music">
         <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
     </a>
 </p>
@@ -53,7 +53,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/AshokShau/TgMusicBot.git
+   git clone https://github.com/Suraj08832/saregama_go_music.git
    cd TgMusicBot
    ```
 
@@ -90,7 +90,7 @@ For detailed instructions, see [installation.md](installation.md).
 
 1. **Clone and Config**
    ```bash
-   git clone https://github.com/AshokShau/TgMusicBot.git
+   git clone https://github.com/Suraj08832/saregama_go_music.git
    cd TgMusicBot
    cp sample.env .env
    # Edit .env with your credentials
@@ -189,9 +189,9 @@ If you find this project useful, consider supporting its development with a dona
 
 </div>
 
-- 📦 Repo: [TgMusicBot on GitHub](https://github.com/AshokShau/TgMusicBot)
-- 💬 Support: [Telegram Group](https://t.me/FallenProjects)
-- 🐍 Old version: [TgMusicBot (Python)](https://github.com/AshokShau/TgMusicBot/tree/python)
+- 📦 Repo: [TgMusicBot on GitHub](https://github.com/Suraj08832/saregama_go_music)
+- 💬 Support: [Telegram Group](https://t.me/+-k19xwGnFg1mNzUx)
+- 🐍 Old version: [TgMusicBot (Python)](https://github.com/Suraj08832/saregama_go_music/tree/python)
 
 ---
 

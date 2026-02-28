@@ -3,7 +3,7 @@
  *  Copyright (c) 2025-2026 Ashok Shau
  *
  *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
+ *  See https://github.com/Suraj08832/saregama_go_music
  */
 
 package config
@@ -43,8 +43,8 @@ func LoadConfig() error {
 		MaxFileSize:       getEnvInt64("MAX_FILE_SIZE"),
 		SongDurationLimit: getEnvInt64("SONG_DURATION_LIMIT"),
 		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "downloads"),
-		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/FallenSupport"),
-		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
+		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/DOSTANA_HUB"),
+		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/+-k19xwGnFg1mNzUx"),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
 		Port:              getEnvStr("PORT", "6060"),
 	}

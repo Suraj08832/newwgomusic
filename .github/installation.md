@@ -30,7 +30,7 @@ The bot is configured using a `.env` file. You'll need to create this file and f
 
 1.  **Clone the repository:**
     ```sh
-    git clone https://github.com/AshokShau/TgMusicBot.git
+    git clone https://github.com/Suraj08832/saregama_go_music.git
     cd TgMusicBot
     ```
 
