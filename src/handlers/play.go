@@ -291,14 +291,14 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 
 	// Generate thumbnail if it's a YouTube video
 	var thumbPath string
-	if song.Platform == utils.YouTube && song.TrackID != "" {
+	if saveCache.Platform == utils.YouTube && saveCache.TrackID != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		playerUsername := m.Client.Me().Username
 		if playerUsername == "" {
 			playerUsername = "tgmusicbot"
 		}
-		if thumb, err := core.GetThumb(ctx, song.TrackID, playerUsername); err == nil {
+		if thumb, err := core.GetThumb(ctx, saveCache.TrackID, playerUsername); err == nil {
 			thumbPath = thumb
 		}
 	}
