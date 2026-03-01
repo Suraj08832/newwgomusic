@@ -4,8 +4,10 @@ go 1.25.4
 
 require (
 	github.com/amarnathcjd/gogram v1.7.0
+	github.com/disintegration/imaging v1.6.2
 	github.com/shirou/gopsutil/v3 v3.24.5
 	go.mongodb.org/mongo-driver/v2 v2.4.1
+	golang.org/x/image v0.18.0
 )
 
 require (
