@@ -221,7 +221,7 @@ func (y *YouTubeData) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
 }
 
 // downloadTrack handles the download of a track from YouTube.
-// It checks MongoDB cache first, then tries fallback API, then cookies, and caches to logger group.
+// It checks MongoDB cache first, then tries API, and caches to logger group.
 func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, video bool) (string, error) {
 	// Check MongoDB cache first
 	dbCtx, cancel := db.Ctx()
@@ -236,7 +236,7 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 				return filePath, nil
 			}
 			// If download from logger fails, continue with normal download
-			log.Printf("[YouTube] Failed to download from logger cache, falling back to direct download: %v", err)
+			log.Printf("[YouTube] Failed to download from logger cache, falling back to API download: %v", err)
 		}
 	}
 
@@ -252,43 +252,25 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 		}
 	}
 
-	// First try: Fallback API
-	if filePath, err := downloadViaFallbackAPI(ctx, info.Id, video); err == nil && filePath != "" {
-		// After successful download, send to logger group and cache
-		if bot := getBotFromContext(ctx); bot != nil && config.Conf.LoggerId != 0 {
-			go func() {
-				if loggerLink, sendErr := sendToLoggerGroup(bot, filePath, info.Id, video); sendErr == nil {
-					dbCtx2, cancel2 := db.Ctx()
-					defer cancel2()
-					if cacheErr := db.Instance.SetSongCache(dbCtx2, info.Id, loggerLink, video); cacheErr != nil {
-						log.Printf("[YouTube] Failed to cache logger link: %v", cacheErr)
-					} else {
-						log.Printf("[YouTube] Cached logger link for video ID: %s", info.Id)
-					}
-				} else {
-					log.Printf("[YouTube] Failed to send to logger group: %v", sendErr)
-				}
-			}()
-		}
-		return filePath, nil
+	// Download using API (https://shrutibots.site)
+	filePath, apiErr := downloadViaFallbackAPI(ctx, info.Id, video)
+	if apiErr != nil || filePath == "" {
+		return "", fmt.Errorf("API download failed: %w", apiErr)
 	}
 
-	// Fallback: Try cookies with yt-dlp
-	filePath, err := y.downloadWithYtDlp(ctx, info.Id, video)
-	if err != nil {
-		return "", err
-	}
-
-	// After successful download, send to logger group and cache
+	log.Printf("[YouTube] Successfully downloaded via API: %s", info.Id)
+	
+	// In background: Send downloaded file to logger group and cache for next time
 	if bot := getBotFromContext(ctx); bot != nil && config.Conf.LoggerId != 0 {
 		go func() {
+			log.Printf("[YouTube] Background: Sending %s to logger group...", info.Id)
 			if loggerLink, sendErr := sendToLoggerGroup(bot, filePath, info.Id, video); sendErr == nil {
 				dbCtx2, cancel2 := db.Ctx()
 				defer cancel2()
 				if cacheErr := db.Instance.SetSongCache(dbCtx2, info.Id, loggerLink, video); cacheErr != nil {
 					log.Printf("[YouTube] Failed to cache logger link: %v", cacheErr)
 				} else {
-					log.Printf("[YouTube] Cached logger link for video ID: %s", info.Id)
+					log.Printf("[YouTube] Cached logger link for video ID: %s (next time will use cache)", info.Id)
 				}
 			} else {
 				log.Printf("[YouTube] Failed to send to logger group: %v", sendErr)
@@ -435,6 +417,7 @@ func (y *YouTubeData) getCookieFile() string {
 }
 
 // downloadViaFallbackAPI downloads audio/video using the fallback API.
+// Returns file path on success, error on failure (will fallback to cookies).
 func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (string, error) {
 	if videoID == "" || len(videoID) < 3 {
 		return "", errors.New("invalid video ID")
@@ -460,16 +443,22 @@ func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (
 		return "", fmt.Errorf("failed to create downloads directory: %w", err)
 	}
 
-	// Step 1: Get download token
 	apiURL := strings.TrimRight(fallbackAPIURL, "/")
-	downloadURL := fmt.Sprintf("%s/download?url=%s&type=%s", apiURL, url.QueryEscape(videoID), mediaType)
 
+	// Step 1: Get download token from API
+	downloadURL := fmt.Sprintf("%s/download", apiURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	// Add query parameters (matching Python's params)
+	q := req.URL.Query()
+	q.Set("url", videoID)
+	q.Set("type", mediaType)
+	req.URL.RawQuery = q.Encode()
+
+	client := &http.Client{Timeout: 7 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("download request failed: %w", err)
@@ -477,7 +466,7 @@ func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return "", fmt.Errorf("API returned status code: %d", resp.StatusCode)
 	}
 
 	var data map[string]interface{}
@@ -487,46 +476,113 @@ func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (
 
 	downloadToken, ok := data["download_token"].(string)
 	if !ok || downloadToken == "" {
-		return "", errors.New("no download token received")
+		return "", errors.New("no download token received from API")
 	}
 
-	// Step 2: Download the file
-	streamURL := fmt.Sprintf("%s/stream/%s?type=%s", apiURL, url.QueryEscape(videoID), mediaType)
+	// Step 2: Download the file using the token (token as query parameter, not header)
+	streamURL := fmt.Sprintf("%s/stream/%s?type=%s&token=%s", apiURL, url.QueryEscape(videoID), mediaType, url.QueryEscape(downloadToken))
+	
+	timeout := 300 * time.Second
+	if isVideo {
+		timeout = 600 * time.Second
+	}
+
 	req2, err := http.NewRequestWithContext(ctx, http.MethodGet, streamURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create stream request: %w", err)
 	}
 
-	req2.Header.Set("X-Download-Token", downloadToken)
-
-	timeout := 300 * time.Second
-	if isVideo {
-		timeout = 600 * time.Second
+	// Create client that doesn't follow redirects automatically
+	client2 := &http.Client{
+		Timeout: timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Return error to prevent automatic redirect, we'll handle it manually
+			return http.ErrUseLastResponse
+		},
 	}
-	client2 := &http.Client{Timeout: timeout}
 	resp2, err := client2.Do(req2)
-	if err != nil {
+	// Even if we get ErrUseLastResponse (due to redirect), resp2 is still valid
+	if err != nil && !errors.Is(err, http.ErrUseLastResponse) {
 		return "", fmt.Errorf("stream request failed: %w", err)
+	}
+	if resp2 == nil {
+		return "", errors.New("stream request returned nil response")
 	}
 	defer resp2.Body.Close()
 
-	if resp2.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected stream status code: %d", resp2.StatusCode)
+	// Handle 302 redirect (matching Python code)
+	if resp2.StatusCode == http.StatusFound {
+		redirectURL := resp2.Header.Get("Location")
+		if redirectURL == "" {
+			return "", errors.New("302 redirect but no Location header")
+		}
+
+		// Follow the redirect
+		req3, err := http.NewRequestWithContext(ctx, http.MethodGet, redirectURL, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to create redirect request: %w", err)
+		}
+
+		client3 := &http.Client{Timeout: timeout}
+		resp3, err := client3.Do(req3)
+		if err != nil {
+			return "", fmt.Errorf("redirect request failed: %w", err)
+		}
+		defer resp3.Body.Close()
+
+		if resp3.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("redirect returned status code: %d", resp3.StatusCode)
+		}
+
+		// Write file in chunks (16KB like Python code)
+		outFile, err := os.Create(filePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to create file: %w", err)
+		}
+		defer outFile.Close()
+
+		buffer := make([]byte, 16384)
+		if _, err := io.CopyBuffer(outFile, resp3.Body, buffer); err != nil {
+			os.Remove(filePath)
+			return "", fmt.Errorf("failed to write file: %w", err)
+		}
+
+		// Verify file was written successfully
+		if stat, err := os.Stat(filePath); err != nil || stat.Size() == 0 {
+			os.Remove(filePath)
+			return "", errors.New("downloaded file is empty or missing")
+		}
+
+		return filePath, nil
+	} else if resp2.StatusCode == http.StatusOK {
+		// Write file in chunks (16KB like Python code)
+		outFile, err := os.Create(filePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to create file: %w", err)
+		}
+		defer outFile.Close()
+
+		buffer := make([]byte, 16384)
+		if _, err := io.CopyBuffer(outFile, resp2.Body, buffer); err != nil {
+			os.Remove(filePath)
+			return "", fmt.Errorf("failed to write file: %w", err)
+		}
+
+		// Verify file was written successfully
+		if stat, err := os.Stat(filePath); err != nil || stat.Size() == 0 {
+			os.Remove(filePath)
+			return "", errors.New("downloaded file is empty or missing")
+		}
+
+		return filePath, nil
 	}
 
-	// Write file
-	outFile, err := os.Create(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create file: %w", err)
-	}
-	defer outFile.Close()
-
-	if _, err := io.Copy(outFile, resp2.Body); err != nil {
+	// Clean up on error
+	if _, err := os.Stat(filePath); err == nil {
 		os.Remove(filePath)
-		return "", fmt.Errorf("failed to write file: %w", err)
 	}
 
-	return filePath, nil
+	return "", fmt.Errorf("stream returned status code: %d", resp2.StatusCode)
 }
 
 // downloadWithApi downloads a track using the external API.

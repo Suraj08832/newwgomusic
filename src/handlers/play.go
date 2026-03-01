@@ -289,9 +289,28 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		saveCache.URL, saveCache.Name, utils.SecToMin(song.Duration), saveCache.User,
 	)
 
-	_, err := updater.Edit(nowPlaying, &telegram.SendOptions{
+	// Generate thumbnail if it's a YouTube video
+	var thumbPath string
+	if song.Platform == utils.YouTube && song.TrackID != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		playerUsername := m.Client.Me().Username
+		if playerUsername == "" {
+			playerUsername = "tgmusicbot"
+		}
+		if thumb, err := core.GetThumb(ctx, song.TrackID, playerUsername); err == nil {
+			thumbPath = thumb
+		}
+	}
+
+	sendOpts := &telegram.SendOptions{
 		ReplyMarkup: core.ControlButtons("play"),
-	})
+	}
+	if thumbPath != "" {
+		sendOpts.Media = thumbPath
+	}
+
+	_, err := updater.Edit(nowPlaying, sendOpts)
 
 	if err != nil {
 		logger.Warn("Edit message failed: %v", err)

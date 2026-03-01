@@ -22,12 +22,14 @@ import "C"
 
 import (
 	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src/core"
 	"suraj08832/tgmusic/src/utils"
 	"suraj08832/tgmusic/src/vc/ntgcalls"
 	"suraj08832/tgmusic/src/vc/sessions"
 	"suraj08832/tgmusic/src/vc/ubot"
 	"context"
 	"crypto/rand"
+	"time"
 	"errors"
 	"fmt"
 	"log"
@@ -321,9 +323,28 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 		song.User,
 	)
 
-	_, err = reply.Edit(text, &tg.SendOptions{
+	// Generate thumbnail if it's a YouTube video
+	var thumbPath string
+	if song.Platform == utils.YouTube && song.TrackID != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		playerUsername := c.bot.Me().Username
+		if playerUsername == "" {
+			playerUsername = "tgmusicbot"
+		}
+		if thumb, err := core.GetThumb(ctx, song.TrackID, playerUsername); err == nil {
+			thumbPath = thumb
+		}
+	}
+
+	sendOpts := &tg.SendOptions{
 		ReplyMarkup: core.ControlButtons("play"),
-	})
+	}
+	if thumbPath != "" {
+		sendOpts.Media = thumbPath
+	}
+
+	_, err = reply.Edit(text, sendOpts)
 	if err != nil {
 		c.bot.Log.Warn("[playSong] Failed to edit message: %v", err)
 		return nil
