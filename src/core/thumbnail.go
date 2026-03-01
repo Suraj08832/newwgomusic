@@ -130,6 +130,9 @@ func GetThumb(ctx context.Context, videoid string, playerUsername string) (strin
 
 	// Apply blur (simple box blur approximation)
 	blurred := imaging.Blur(baseRGBA, 20)
+	
+	// Convert blurred image to RGBA
+	rgba := imageToRGBA(blurred)
 
 	// Load and resize thumbnail
 	thumbImg, err := imaging.Open(thumbPath)
@@ -289,7 +292,6 @@ func trimToWidth(text string, face font.Face, maxWidth int) string {
 	}
 
 	ellipsis := "…"
-	ellipsisWidth := d.MeasureString(ellipsis)
 
 	for i := len(text) - 1; i > 0; i-- {
 		trimmed := text[:i] + ellipsis

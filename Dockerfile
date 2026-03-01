@@ -10,9 +10,10 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
-RUN go mod tidy && go mod download
+RUN go mod download
 
 COPY . .
+RUN go mod tidy
 RUN go generate
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main .
 
