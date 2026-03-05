@@ -18,6 +18,7 @@ type ChatData struct {
 	Queue         []*utils.CachedTrack
 	History       []string // history of track IDs
 	HistoryTitles []string // history of normalized song titles to avoid repeating the same song
+	AutoplayLeft  int      // remaining autoplay songs for the current chain; -1 means not started
 }
 
 // ChatCacher is a thread-safe cache that manages music queues for multiple chats.
@@ -41,7 +42,7 @@ func (c *ChatCacher) AddSong(chatID int64, song *utils.CachedTrack) int {
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		data = &ChatData{Queue: []*utils.CachedTrack{}}
+		data = &ChatData{Queue: []*utils.CachedTrack{}, AutoplayLeft: -1}
 		c.chatCache[chatID] = data
 	}
 
@@ -57,7 +58,7 @@ func (c *ChatCacher) AddSongs(chatID int64, songs []*utils.CachedTrack) int {
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		data = &ChatData{Queue: []*utils.CachedTrack{}}
+		data = &ChatData{Queue: []*utils.CachedTrack{}, AutoplayLeft: -1}
 		c.chatCache[chatID] = data
 	}
 
@@ -144,7 +145,7 @@ func (c *ChatCacher) MarkPlayed(chatID int64, trackID string) {
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		data = &ChatData{Queue: []*utils.CachedTrack{}}
+		data = &ChatData{Queue: []*utils.CachedTrack{}, AutoplayLeft: -1}
 		c.chatCache[chatID] = data
 	}
 
@@ -196,7 +197,7 @@ func (c *ChatCacher) MarkTitlePlayed(chatID int64, title string) {
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		data = &ChatData{Queue: []*utils.CachedTrack{}}
+		data = &ChatData{Queue: []*utils.CachedTrack{}, AutoplayLeft: -1}
 		c.chatCache[chatID] = data
 	}
 
@@ -233,6 +234,39 @@ func (c *ChatCacher) WasTitlePlayed(chatID int64, title string) bool {
 		}
 	}
 	return false
+}
+
+// GetAutoplayRemaining returns how many autoplay songs are left for the current chain.
+// -1 means autoplay has not started yet for this chain.
+func (c *ChatCacher) GetAutoplayRemaining(chatID int64) int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		return -1
+	}
+	return data.AutoplayLeft
+}
+
+// SetAutoplayRemaining sets how many autoplay songs are left for the current chain.
+func (c *ChatCacher) SetAutoplayRemaining(chatID int64, remaining int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		data = &ChatData{Queue: []*utils.CachedTrack{}, AutoplayLeft: remaining}
+		c.chatCache[chatID] = data
+		return
+	}
+	data.AutoplayLeft = remaining
+}
+
+// ResetAutoplay clears any active autoplay chain so the next time autoplay runs,
+// it will start fresh (with the full limit again).
+func (c *ChatCacher) ResetAutoplay(chatID int64) {
+	c.SetAutoplayRemaining(chatID, -1)
 }
 
 // GetQueueLength returns the total number of songs in a chat's queue.

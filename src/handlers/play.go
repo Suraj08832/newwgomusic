@@ -160,6 +160,9 @@ func handleMedia(m *telegram.NewMessage, updater *telegram.NewMessage, dlMsg *te
 		Duration: dur, IsVideo: isVideo, Platform: utils.Telegram,
 	}
 
+	// User is manually adding/playing a song; reset any existing autoplay chain.
+	cache.ChatCache.ResetAutoplay(chatId)
+
 	qLen := cache.ChatCache.AddSong(chatId, &saveCache)
 
 	if qLen > 1 {
@@ -245,6 +248,10 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		_, err := updater.Edit(fmt.Sprintf("Sorry, song exceeds max duration of %d minutes.", config.Conf.SongDurationLimit/60))
 		return err
 	}
+
+	// Manual play/search should reset the autoplay chain so that after this
+	// queue finishes, up to the full limit (4) of autoplay songs can run again.
+	cache.ChatCache.ResetAutoplay(chatId)
 
 	saveCache := utils.CachedTrack{
 		URL: song.Url, Name: song.Title, User: m.Sender.FirstName, UserID: m.SenderID(), FilePath: filePath,
@@ -333,6 +340,10 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 
 	shouldPlayFirst := false
 	var firstTrack *utils.CachedTrack
+
+	// A playlist or multiple results being added is also a manual action,
+	// so reset the autoplay chain here.
+	cache.ChatCache.ResetAutoplay(chatId)
 
 	for _, track := range tracks {
 		if track.Duration > int(config.Conf.SongDurationLimit) {

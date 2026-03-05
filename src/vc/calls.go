@@ -300,6 +300,20 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 		return false
 	}
 
+	// Enforce a maximum number of autoplay songs in a row per "chain".
+	// Each time the queue finishes and autoplay kicks in, we allow up to
+	// 4 songs to be auto-added. After that, autoplay stops until the user
+	// plays something manually again (which resets the counter).
+	remaining := cache.ChatCache.GetAutoplayRemaining(chatID)
+	if remaining == 0 {
+		// Limit reached for this chain.
+		return false
+	}
+	if remaining < 0 {
+		// Autoplay hasn't started yet for this chain; initialize the limit.
+		remaining = 4
+	}
+
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
@@ -420,6 +434,10 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 		} else {
 			next = candidates[n.Int64()]
 		}
+
+		// One autoplay slot is now being used for this chain.
+		remaining--
+		cache.ChatCache.SetAutoplayRemaining(chatID, remaining)
 		break
 	}
 
