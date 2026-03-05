@@ -347,6 +347,7 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 
 	var next utils.MusicTrack
 	baseTitleNorm := normalizeTitleForAutoplay(currentSong.Name)
+	baseArtistNorm := normalizeArtistForAutoplay(artist)
 	for _, q := range queries {
 		if strings.TrimSpace(q) == "" {
 			continue
@@ -362,6 +363,20 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 			if t.Id == "" {
 				continue
 			}
+
+			// Normalize candidate artist/channel similar to how we normalized the
+			// current song's artist so we can compare singers reliably.
+			candArtist := strings.TrimSpace(t.Channel)
+			if candArtist != "" {
+				for _, sep := range []string{"-", "|", "•", ","} {
+					if idx := strings.Index(candArtist, sep); idx > 0 {
+						candArtist = strings.TrimSpace(candArtist[:idx])
+						break
+					}
+				}
+			}
+			candArtistNorm := normalizeArtistForAutoplay(candArtist)
+
 			// Skip the exact same video and anything we've already played recently
 			// in this chat to avoid looping between the same few tracks.
 			if t.Id == currentSong.TrackID || cache.ChatCache.WasPlayed(chatID, t.Id) {
@@ -369,6 +384,11 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 			}
 			// Also skip the same song in different uploads (lyrics, official video, etc.)
 			if baseTitleNorm != "" && normalizeTitleForAutoplay(t.Title) == baseTitleNorm {
+				continue
+			}
+			// And finally, skip tracks from the same singer/channel as the last song
+			// so autoplay feels more "random" and less stuck on one artist.
+			if baseArtistNorm != "" && candArtistNorm != "" && candArtistNorm == baseArtistNorm {
 				continue
 			}
 			next = t
@@ -588,6 +608,28 @@ func normalizeTitleForAutoplay(s string) string {
 	}
 
 	// Collapse extra spaces.
+	spaceRe := regexp.MustCompile(`\s+`)
+	s = spaceRe.ReplaceAllString(s, " ")
+	return strings.TrimSpace(s)
+}
+
+// normalizeArtistForAutoplay cleans up channel/artist names like
+// "Vilen - Topic", "Vilen Official", etc. so we can compare singers
+// and avoid autoplaying back-to-back songs from the same artist.
+func normalizeArtistForAutoplay(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "" {
+		return ""
+	}
+
+	noise := []string{
+		"official", "topic", "music", "channel",
+		" - official", " - topic",
+	}
+	for _, w := range noise {
+		s = strings.ReplaceAll(s, w, " ")
+	}
+
 	spaceRe := regexp.MustCompile(`\s+`)
 	s = spaceRe.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
