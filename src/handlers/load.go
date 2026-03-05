@@ -47,6 +47,8 @@ func LoadModules(c *tg.Client) {
 	c.On("command:queue", queueHandler, tg.Custom(adminMode))
 	c.On("command:seek", seekHandler, tg.Custom(adminMode))
 	c.On("command:speed", speedHandler, tg.Custom(adminMode))
+	// /autoplay is allowed for all users so they can toggle personal music preference.
+	c.On("command:autoplay", autoplayHandler)
 	c.On("command:authList", authListHandler, tg.Custom(adminMode))
 	c.On("command:addAuth", addAuthHandler, tg.Custom(adminMode))
 	c.On("command:auth", addAuthHandler, tg.Custom(adminMode))
