@@ -346,6 +346,7 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	}
 
 	var next utils.MusicTrack
+	baseTitleNorm := normalizeTitleForAutoplay(currentSong.Name)
 	for _, q := range queries {
 		if strings.TrimSpace(q) == "" {
 			continue
@@ -364,6 +365,10 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 			// Skip the exact same video and anything we've already played recently
 			// in this chat to avoid looping between the same few tracks.
 			if t.Id == currentSong.TrackID || cache.ChatCache.WasPlayed(chatID, t.Id) {
+				continue
+			}
+			// Also skip the same song in different uploads (lyrics, official video, etc.)
+			if baseTitleNorm != "" && normalizeTitleForAutoplay(t.Title) == baseTitleNorm {
 				continue
 			}
 			next = t
@@ -559,6 +564,34 @@ func (c *TelegramCalls) PlayedTime(chatId int64) (uint64, error) {
 }
 
 var urlRegex = regexp.MustCompile(`^https?://`)
+
+// normalizeTitleForAutoplay tries to reduce titles like
+// "Aur Iss Dil Mein - Lyrical", "Aur Iss Dil Mein (Lyrics)",
+// "Aur Iss Dil Mein | Official Video" to a common base form so
+// we can avoid picking multiple uploads of essentially the same song.
+func normalizeTitleForAutoplay(s string) string {
+	s = strings.ToLower(s)
+	// Remove bracket/parenthesis content.
+	brackets := regexp.MustCompile(`[\(\[\{].*?[\)\]\}]`)
+	s = brackets.ReplaceAllString(s, " ")
+
+	// Remove common noise words.
+	noise := []string{
+		"official video", "official lyric video", "lyric video", "lyrics",
+		"audio", "full video", "full song", "video song",
+		"feat.", "ft.", "ltd.", "hd", "4k",
+		"lyrics video", "lyrical", "lyrical video",
+		"|", "•",
+	}
+	for _, w := range noise {
+		s = strings.ReplaceAll(s, w, " ")
+	}
+
+	// Collapse extra spaces.
+	spaceRe := regexp.MustCompile(`\s+`)
+	s = spaceRe.ReplaceAllString(s, " ")
+	return strings.TrimSpace(s)
+}
 
 // SeekStream jumps to a specific time in the current media stream.
 func (c *TelegramCalls) SeekStream(chatID int64, filePath string, toSeek, duration int, isVideo bool) error {
