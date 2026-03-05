@@ -15,7 +15,8 @@ import (
 
 // ChatData holds the state of a chat's music queue, including whether it is active and the list of tracks.
 type ChatData struct {
-	Queue []*utils.CachedTrack
+	Queue   []*utils.CachedTrack
+	History []string
 }
 
 // ChatCacher is a thread-safe cache that manages music queues for multiple chats.
@@ -128,6 +129,57 @@ func (c *ChatCacher) ClearChat(chatID int64) {
 	}
 
 	delete(c.chatCache, chatID)
+}
+
+// MarkPlayed adds a track ID to the chat's playback history. It keeps only
+// the most recent 50 entries to avoid unbounded growth.
+func (c *ChatCacher) MarkPlayed(chatID int64, trackID string) {
+	if trackID == "" {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		data = &ChatData{Queue: []*utils.CachedTrack{}}
+		c.chatCache[chatID] = data
+	}
+
+	for _, id := range data.History {
+		if id == trackID {
+			return
+		}
+	}
+
+	data.History = append(data.History, trackID)
+	if len(data.History) > 50 {
+		data.History = data.History[len(data.History)-50:]
+	}
+}
+
+// WasPlayed reports whether the given track ID was already played recently
+// in this chat (as tracked by MarkPlayed).
+func (c *ChatCacher) WasPlayed(chatID int64, trackID string) bool {
+	if trackID == "" {
+		return false
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		return false
+	}
+
+	for _, id := range data.History {
+		if id == trackID {
+			return true
+		}
+	}
+	return false
 }
 
 // GetQueueLength returns the total number of songs in a chat's queue.

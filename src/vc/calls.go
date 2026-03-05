@@ -310,32 +310,56 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	searchCtx, searchCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer searchCancel()
 
-	query := currentSong.Name
-	if query == "" {
-		query = currentSong.URL
+	// Build a set of queries to try, prioritizing:
+	//  1) The artist/channel name (to get other songs by the same singer)
+	//  2) Song name + artist (to bias towards similar tracks)
+	//  3) Song name alone (generic related search)
+	//  4) URL as a last resort.
+	var queries []string
+	if currentSong.Channel != "" {
+		queries = append(queries, currentSong.Channel)
 	}
-
-	if strings.TrimSpace(query) == "" {
-		return false
-	}
-
-	wrapper := dl.NewDownloaderWrapper(query)
-	tracks, err := wrapper.Search(searchCtx)
-	if err != nil || tracks.Results == nil || len(tracks.Results) == 0 {
-		logger.Warn("[Autoplay] Failed to find related tracks: %v", err)
-		return false
+	if currentSong.Name != "" {
+		if currentSong.Channel != "" {
+			queries = append(queries, currentSong.Name+" "+currentSong.Channel)
+		}
+		queries = append(queries, currentSong.Name)
+	} else if currentSong.URL != "" {
+		queries = append(queries, currentSong.URL)
 	}
 
 	var next utils.MusicTrack
-	for _, t := range tracks.Results {
-		if t.Id != "" && t.Id != currentSong.TrackID {
+	for _, q := range queries {
+		if strings.TrimSpace(q) == "" {
+			continue
+		}
+
+		wrapper := dl.NewDownloaderWrapper(q)
+		tracks, err := wrapper.Search(searchCtx)
+		if err != nil || tracks.Results == nil || len(tracks.Results) == 0 {
+			continue
+		}
+
+		for _, t := range tracks.Results {
+			if t.Id == "" {
+				continue
+			}
+			// Skip the exact same video and anything we've already played recently
+			// in this chat to avoid looping between the same few tracks.
+			if t.Id == currentSong.TrackID || cache.ChatCache.WasPlayed(chatID, t.Id) {
+				continue
+			}
 			next = t
+			break
+		}
+
+		if next.Id != "" {
 			break
 		}
 	}
 
 	if next.Id == "" {
-		// Fallback: if all results match current track ID, skip autoplay.
+		// No suitable related track found.
 		return false
 	}
 
@@ -384,6 +408,11 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	if err = c.PlayMedia(chatID, song.FilePath, song.IsVideo, ""); err != nil {
 		_, err := reply.Edit(err.Error())
 		return err
+	}
+
+	// Track this song in the chat's playback history to improve autoplay variety.
+	if song.TrackID != "" {
+		cache.ChatCache.MarkPlayed(chatID, song.TrackID)
 	}
 
 	if song.Duration == 0 {
