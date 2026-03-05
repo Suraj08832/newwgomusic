@@ -177,6 +177,37 @@ func (db *Database) updateUserField(ctx context.Context, userID int64, key strin
 	return nil
 }
 
+// GetAutoplayStatus retrieves the autoplay preference for a user.
+// It returns false by default if the user has no preference set.
+func (db *Database) GetAutoplayStatus(ctx context.Context, userID int64) bool {
+	key := toKey(userID)
+
+	// Try cache first
+	if cached, ok := db.userCache.Get(key); ok {
+		if v, ok := cached["autoplay"].(bool); ok {
+			return v
+		}
+	}
+
+	// Fallback to database
+	var data map[string]interface{}
+	_ = db.userDB.FindOne(ctx, bson.M{"_id": userID}).Decode(&data)
+
+	status := false
+	if val, ok := data["autoplay"].(bool); ok {
+		status = val
+	}
+
+	// Update cache with the fetched value
+	db.userCache.Set(key, map[string]interface{}{"autoplay": status})
+	return status
+}
+
+// SetAutoplayStatus updates the autoplay preference for a user.
+func (db *Database) SetAutoplayStatus(ctx context.Context, userID int64, status bool) error {
+	return db.updateUserField(ctx, userID, "autoplay", status)
+}
+
 // GetPlayType retrieves the play type setting for a chat.
 // It returns 0 if no play type is set.
 func (db *Database) GetPlayType(ctx context.Context, chatID int64) int {
