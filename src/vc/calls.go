@@ -279,8 +279,85 @@ func (c *TelegramCalls) PlayNext(chatID int64) error {
 		return c.playSong(chatID, nextSong)
 	}
 
+	// No upcoming song in the queue; try autoplay based on the current user's preference.
+	if c.tryAutoplay(chatID) {
+		if nextSong := cache.ChatCache.GetUpcomingTrack(chatID); nextSong != nil {
+			cache.ChatCache.RemoveCurrentSong(chatID)
+			return c.playSong(chatID, nextSong)
+		}
+	}
+
 	cache.ChatCache.RemoveCurrentSong(chatID)
 	return c.handleNoSong(chatID)
+}
+
+// tryAutoplay attempts to enqueue a related track when the queue is empty
+// and the requester has enabled autoplay. It returns true if a new track was
+// successfully added to the queue.
+func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
+	currentSong := cache.ChatCache.GetPlayingTrack(chatID)
+	if currentSong == nil || currentSong.UserID == 0 {
+		return false
+	}
+
+	ctx, cancel := db.Ctx()
+	defer cancel()
+
+	if !db.Instance.GetAutoplayStatus(ctx, currentSong.UserID) {
+		return false
+	}
+
+	searchCtx, searchCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer searchCancel()
+
+	query := currentSong.Name
+	if query == "" {
+		query = currentSong.URL
+	}
+
+	if strings.TrimSpace(query) == "" {
+		return false
+	}
+
+	wrapper := dl.NewDownloaderWrapper(query)
+	tracks, err := wrapper.Search(searchCtx)
+	if err != nil || tracks.Results == nil || len(tracks.Results) == 0 {
+		logger.Warn("[Autoplay] Failed to find related tracks: %v", err)
+		return false
+	}
+
+	var next utils.MusicTrack
+	for _, t := range tracks.Results {
+		if t.Id != "" && t.Id != currentSong.TrackID {
+			next = t
+			break
+		}
+	}
+
+	if next.Id == "" {
+		// Fallback: if all results match current track ID, skip autoplay.
+		return false
+	}
+
+	newTrack := &utils.CachedTrack{
+		URL:       next.Url,
+		Name:      next.Title,
+		Loop:      0,
+		User:      currentSong.User,
+		UserID:    currentSong.UserID,
+		FilePath:  "",
+		Thumbnail: next.Thumbnail,
+		TrackID:   next.Id,
+		Duration:  next.Duration,
+		Channel:   next.Channel,
+		Views:     next.Views,
+		IsVideo:   currentSong.IsVideo,
+		Platform:  next.Platform,
+	}
+
+	cache.ChatCache.AddSong(chatID, newTrack)
+	logger.Info("[Autoplay] Added related track %s (%s) for chat %d", newTrack.Name, newTrack.URL, chatID)
+	return true
 }
 
 // handleNoSong manages the situation where there are no more songs in the queue by stopping the playback

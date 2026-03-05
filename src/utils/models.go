@@ -15,6 +15,7 @@ type CachedTrack struct {
 	Name      string `json:"name"`
 	Loop      int    `json:"loop"`
 	User      string `json:"user"`
+	UserID    int64  `json:"user_id,omitempty"`
 	FilePath  string `json:"file_path"`
 	Thumbnail string `json:"thumbnail"`
 	TrackID   string `json:"track_id"`

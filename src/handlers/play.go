@@ -156,7 +156,7 @@ func handleMedia(m *telegram.NewMessage, updater *telegram.NewMessage, dlMsg *te
 
 	dur := utils.GetFileDur(dlMsg)
 	saveCache := utils.CachedTrack{
-		URL: dlMsg.Link(), Name: fileName, User: m.Sender.FirstName, TrackID: fileId,
+		URL: dlMsg.Link(), Name: fileName, User: m.Sender.FirstName, UserID: m.SenderID(), TrackID: fileId,
 		Duration: dur, IsVideo: isVideo, Platform: utils.Telegram,
 	}
 
@@ -247,7 +247,7 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 	}
 
 	saveCache := utils.CachedTrack{
-		URL: song.Url, Name: song.Title, User: m.Sender.FirstName, FilePath: filePath,
+		URL: song.Url, Name: song.Title, User: m.Sender.FirstName, UserID: m.SenderID(), FilePath: filePath,
 		Thumbnail: song.Thumbnail, TrackID: song.Id, Duration: song.Duration, Channel: song.Channel, Views: song.Views,
 		IsVideo: isVideo, Platform: song.Platform,
 	}
@@ -342,7 +342,7 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 
 		saveCache := &utils.CachedTrack{
 			Name: track.Title, TrackID: track.Id, Duration: track.Duration,
-			Thumbnail: track.Thumbnail, User: m.Sender.FirstName, Platform: track.Platform,
+			Thumbnail: track.Thumbnail, User: m.Sender.FirstName, UserID: m.SenderID(), Platform: track.Platform,
 			IsVideo: isVideo, URL: track.Url, Channel: track.Channel, Views: track.Views,
 		}
 		tracksToAdd = append(tracksToAdd, saveCache)
