@@ -366,7 +366,6 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 
 	var next utils.MusicTrack
 	baseTitleNorm := normalizeTitleForAutoplay(currentSong.Name)
-	baseArtistNorm := normalizeArtistForAutoplay(artist)
 	for _, q := range queries {
 		if strings.TrimSpace(q) == "" {
 			continue
@@ -384,6 +383,12 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 				continue
 			}
 
+			// Filter out obvious non‑music content (full episodes, cartoons, very long
+			// or very short clips, etc.) so autoplay stays focused on songs.
+			if !isLikelyMusicTrack(t) {
+				continue
+			}
+
 			// Skip the exact same video and anything we've already played recently
 			// in this chat to avoid looping between the same few tracks.
 			if t.Id == currentSong.TrackID || cache.ChatCache.WasPlayed(chatID, t.Id) {
@@ -397,25 +402,6 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 			}
 			// And skip any song whose normalized title was already played recently in this chat.
 			if candTitleNorm != "" && cache.ChatCache.WasTitlePlayed(chatID, candTitleNorm) {
-				continue
-			}
-
-			// Normalize candidate artist/channel similar to how we normalized the
-			// current song's artist so we can compare singers reliably.
-			candArtist := strings.TrimSpace(t.Channel)
-			if candArtist != "" {
-				for _, sep := range []string{"-", "|", "•", ","} {
-					if idx := strings.Index(candArtist, sep); idx > 0 {
-						candArtist = strings.TrimSpace(candArtist[:idx])
-						break
-					}
-				}
-			}
-			candArtistNorm := normalizeArtistForAutoplay(candArtist)
-
-			// And finally, skip tracks from the same singer/channel as the last song
-			// so autoplay feels more "random" and less stuck on one artist.
-			if baseArtistNorm != "" && candArtistNorm != "" && candArtistNorm == baseArtistNorm {
 				continue
 			}
 
@@ -680,6 +666,40 @@ func normalizeArtistForAutoplay(s string) string {
 	spaceRe := regexp.MustCompile(`\s+`)
 	s = spaceRe.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
+}
+
+// isLikelyMusicTrack tries to detect if a search result looks like a normal song
+// and not a full episode, cartoon block, gameplay, podcast, etc.
+func isLikelyMusicTrack(t utils.MusicTrack) bool {
+	title := strings.ToLower(strings.TrimSpace(t.Title))
+	channel := strings.ToLower(strings.TrimSpace(t.Channel))
+	combined := title + " " + channel
+
+	// Obvious non‑music keywords we want to avoid in autoplay.
+	badKeywords := []string{
+		"full episode", "episodes", "cartoon network", "cartoon", "anime episode",
+		"gameplay", "walkthrough", "let's play", "highlights", "live stream",
+		"podcast", "talk show", "behind the scenes", "interview",
+		"commercials", "ads", "advertisement",
+		"full movie", "movie clip", "trailer", "teaser",
+	}
+	for _, w := range badKeywords {
+		if strings.Contains(combined, w) {
+			return false
+		}
+	}
+
+	// Reuse the global song duration limit to avoid very long videos.
+	if t.Duration > int(config.Conf.SongDurationLimit) {
+		return false
+	}
+
+	// Also skip ultra‑short clips that are unlikely to be full songs.
+	if t.Duration > 0 && t.Duration < 30 {
+		return false
+	}
+
+	return true
 }
 
 // SeekStream jumps to a specific time in the current media stream.
