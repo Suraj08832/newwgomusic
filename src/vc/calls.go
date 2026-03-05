@@ -311,20 +311,37 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	defer searchCancel()
 
 	// Build a set of queries to try, prioritizing:
-	//  1) The artist/channel name (to get other songs by the same singer)
-	//  2) Song name + artist (to bias towards similar tracks)
+	//  1) Song name + artist (to bias towards similar tracks)
+	//  2) Artist/singer name alone (to get their songs from any channel)
 	//  3) Song name alone (generic related search)
-	//  4) URL as a last resort.
+	//  4) Raw channel name
+	//  5) URL as a last resort.
 	var queries []string
+
+	artist := strings.TrimSpace(currentSong.Channel)
+	// Try to extract a cleaner artist name from patterns like "Vilen - Topic", "Vilen Official", etc.
+	if artist != "" {
+		for _, sep := range []string{"-", "|", "•", ","} {
+			if idx := strings.Index(artist, sep); idx > 0 {
+				artist = strings.TrimSpace(artist[:idx])
+				break
+			}
+		}
+	}
+
+	if currentSong.Name != "" && artist != "" {
+		queries = append(queries, currentSong.Name+" "+artist)
+	}
+	if artist != "" {
+		queries = append(queries, artist)
+	}
+	if currentSong.Name != "" {
+		queries = append(queries, currentSong.Name)
+	}
 	if currentSong.Channel != "" {
 		queries = append(queries, currentSong.Channel)
 	}
-	if currentSong.Name != "" {
-		if currentSong.Channel != "" {
-			queries = append(queries, currentSong.Name+" "+currentSong.Channel)
-		}
-		queries = append(queries, currentSong.Name)
-	} else if currentSong.URL != "" {
+	if currentSong.URL != "" {
 		queries = append(queries, currentSong.URL)
 	}
 
