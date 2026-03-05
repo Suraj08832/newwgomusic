@@ -13,10 +13,11 @@ import (
 	"sync"
 )
 
-// ChatData holds the state of a chat's music queue, including whether it is active and the list of tracks.
+// ChatData holds the state of a chat's music queue and playback history.
 type ChatData struct {
-	Queue   []*utils.CachedTrack
-	History []string
+	Queue         []*utils.CachedTrack
+	History       []string // history of track IDs
+	HistoryTitles []string // history of normalized song titles to avoid repeating the same song
 }
 
 // ChatCacher is a thread-safe cache that manages music queues for multiple chats.
@@ -176,6 +177,58 @@ func (c *ChatCacher) WasPlayed(chatID int64, trackID string) bool {
 
 	for _, id := range data.History {
 		if id == trackID {
+			return true
+		}
+	}
+	return false
+}
+
+// MarkTitlePlayed tracks a normalized song title in the chat's playback history.
+// This helps prevent autoplay from picking the same song again even if it is
+// a different upload or has a slightly different title.
+func (c *ChatCacher) MarkTitlePlayed(chatID int64, title string) {
+	if title == "" {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		data = &ChatData{Queue: []*utils.CachedTrack{}}
+		c.chatCache[chatID] = data
+	}
+
+	for _, t := range data.HistoryTitles {
+		if t == title {
+			return
+		}
+	}
+
+	data.HistoryTitles = append(data.HistoryTitles, title)
+	if len(data.HistoryTitles) > 50 {
+		data.HistoryTitles = data.HistoryTitles[len(data.HistoryTitles)-50:]
+	}
+}
+
+// WasTitlePlayed reports whether a normalized song title was already played
+// recently in this chat (as tracked by MarkTitlePlayed).
+func (c *ChatCacher) WasTitlePlayed(chatID int64, title string) bool {
+	if title == "" {
+		return false
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		return false
+	}
+
+	for _, t := range data.HistoryTitles {
+		if t == title {
 			return true
 		}
 	}

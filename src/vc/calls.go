@@ -383,7 +383,12 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 				continue
 			}
 			// Also skip the same song in different uploads (lyrics, official video, etc.)
-			if baseTitleNorm != "" && normalizeTitleForAutoplay(t.Title) == baseTitleNorm {
+			candTitleNorm := normalizeTitleForAutoplay(t.Title)
+			if baseTitleNorm != "" && candTitleNorm == baseTitleNorm {
+				continue
+			}
+			// And skip any song whose normalized title was already played recently in this chat.
+			if candTitleNorm != "" && cache.ChatCache.WasTitlePlayed(chatID, candTitleNorm) {
 				continue
 			}
 			// And finally, skip tracks from the same singer/channel as the last song
@@ -455,6 +460,9 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	// Track this song in the chat's playback history to improve autoplay variety.
 	if song.TrackID != "" {
 		cache.ChatCache.MarkPlayed(chatID, song.TrackID)
+	}
+	if normTitle := normalizeTitleForAutoplay(song.Name); normTitle != "" {
+		cache.ChatCache.MarkTitlePlayed(chatID, normTitle)
 	}
 
 	if song.Duration == 0 {
