@@ -311,11 +311,11 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	defer searchCancel()
 
 	// Build a set of queries to try, prioritizing:
-	//  1) Song name + artist (to bias towards similar tracks)
-	//  2) Artist/singer name alone (to get their songs from any channel)
-	//  3) Song name alone (generic related search)
-	//  4) Raw channel name
-	//  5) URL as a last resort.
+	//  1) Artist/singer name (to get other songs from that artist)
+	//  2) Channel name
+	//  3) Song name + artist (fallback)
+	//  4) Song name alone (last resort)
+	//  5) URL as a very last resort.
 	var queries []string
 
 	artist := strings.TrimSpace(currentSong.Channel)
@@ -329,17 +329,22 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 		}
 	}
 
-	if currentSong.Name != "" && artist != "" {
-		queries = append(queries, currentSong.Name+" "+artist)
-	}
 	if artist != "" {
 		queries = append(queries, artist)
 	}
+	if artist != "" {
+		queries = append(queries, artist+" songs")
+	}
+	if currentSong.Channel != "" && currentSong.Channel != artist {
+		queries = append(queries, currentSong.Channel)
+	}
+	// Title-based searches are more likely to return variants of the same song,
+	// so we only use them as a fallback (and still apply strong de-dup filters).
+	if currentSong.Name != "" && artist != "" {
+		queries = append(queries, currentSong.Name+" "+artist)
+	}
 	if currentSong.Name != "" {
 		queries = append(queries, currentSong.Name)
-	}
-	if currentSong.Channel != "" {
-		queries = append(queries, currentSong.Channel)
 	}
 	if currentSong.URL != "" {
 		queries = append(queries, currentSong.URL)
@@ -359,8 +364,25 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 			continue
 		}
 
+		var candidates []utils.MusicTrack
 		for _, t := range tracks.Results {
 			if t.Id == "" {
+				continue
+			}
+
+			// Skip the exact same video and anything we've already played recently
+			// in this chat to avoid looping between the same few tracks.
+			if t.Id == currentSong.TrackID || cache.ChatCache.WasPlayed(chatID, t.Id) {
+				continue
+			}
+
+			// Also skip the same song in different uploads (lyrics, official video, etc.)
+			candTitleNorm := normalizeTitleForAutoplay(t.Title)
+			if baseTitleNorm != "" && candTitleNorm == baseTitleNorm {
+				continue
+			}
+			// And skip any song whose normalized title was already played recently in this chat.
+			if candTitleNorm != "" && cache.ChatCache.WasTitlePlayed(chatID, candTitleNorm) {
 				continue
 			}
 
@@ -377,32 +399,28 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 			}
 			candArtistNorm := normalizeArtistForAutoplay(candArtist)
 
-			// Skip the exact same video and anything we've already played recently
-			// in this chat to avoid looping between the same few tracks.
-			if t.Id == currentSong.TrackID || cache.ChatCache.WasPlayed(chatID, t.Id) {
-				continue
-			}
-			// Also skip the same song in different uploads (lyrics, official video, etc.)
-			candTitleNorm := normalizeTitleForAutoplay(t.Title)
-			if baseTitleNorm != "" && candTitleNorm == baseTitleNorm {
-				continue
-			}
-			// And skip any song whose normalized title was already played recently in this chat.
-			if candTitleNorm != "" && cache.ChatCache.WasTitlePlayed(chatID, candTitleNorm) {
-				continue
-			}
 			// And finally, skip tracks from the same singer/channel as the last song
 			// so autoplay feels more "random" and less stuck on one artist.
 			if baseArtistNorm != "" && candArtistNorm != "" && candArtistNorm == baseArtistNorm {
 				continue
 			}
-			next = t
-			break
+
+			candidates = append(candidates, t)
 		}
 
-		if next.Id != "" {
-			break
+		if len(candidates) == 0 {
+			continue
 		}
+
+		// Pick a truly random candidate from the filtered list so autoplay feels
+		// less repetitive even when search results are similar every time.
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(candidates))))
+		if err != nil {
+			next = candidates[0]
+		} else {
+			next = candidates[n.Int64()]
+		}
+		break
 	}
 
 	if next.Id == "" {
@@ -605,10 +623,13 @@ func normalizeTitleForAutoplay(s string) string {
 
 	// Remove common noise words.
 	noise := []string{
-		"official video", "official lyric video", "lyric video", "lyrics",
-		"audio", "full video", "full song", "video song",
+		"official video", "official lyric video", "official music video", "music video",
+		"lyric video", "lyrics video", "lyrical", "lyrical video", "lyrics",
+		"audio", "audio song", "full video", "full song", "video song",
+		"remix", "mix", "edit", "version", "extended",
+		"lofi", "lo-fi", "slowed", "reverb", "slowed + reverb", "slowed reverb",
+		"8d", "8d audio", "bass boosted",
 		"feat.", "ft.", "ltd.", "hd", "4k",
-		"lyrics video", "lyrical", "lyrical video",
 		"|", "•",
 	}
 	for _, w := range noise {
