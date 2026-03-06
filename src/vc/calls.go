@@ -324,6 +324,8 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	searchCtx, searchCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer searchCancel()
 
+	langHint := detectAutoplayLanguageHint(currentSong.Name, currentSong.Channel)
+
 	// Build a set of queries to try, prioritizing:
 	//  1) Artist/singer name (to get other songs from that artist)
 	//  2) Channel name
@@ -349,6 +351,12 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	if artist != "" {
 		queries = append(queries, artist+" songs")
 	}
+	// When we have a language hint (e.g. "bhojpuri", "hindi"), bias the query so
+	// YouTube search stays in the same lane for autoplay.
+	if langHint != "" && artist != "" {
+		queries = append(queries, artist+" "+langHint+" song")
+		queries = append(queries, artist+" "+langHint+" songs")
+	}
 	if currentSong.Channel != "" && currentSong.Channel != artist {
 		queries = append(queries, currentSong.Channel)
 	}
@@ -360,9 +368,13 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	if currentSong.Name != "" {
 		queries = append(queries, currentSong.Name)
 	}
+	if langHint != "" && currentSong.Name != "" {
+		queries = append(queries, currentSong.Name+" "+langHint+" song")
+	}
 	if currentSong.URL != "" {
 		queries = append(queries, currentSong.URL)
 	}
+	queries = dedupeAutoplayQueries(queries)
 
 	var next utils.MusicTrack
 	baseTitleNorm := normalizeTitleForAutoplay(currentSong.Name)
@@ -385,7 +397,7 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 
 			// Filter out obvious non‑music content (full episodes, cartoons, very long
 			// or very short clips, etc.) so autoplay stays focused on songs.
-			if !isLikelyMusicTrack(t) {
+			if !isLikelyMusicTrack(t, langHint) {
 				continue
 			}
 
@@ -670,7 +682,7 @@ func normalizeArtistForAutoplay(s string) string {
 
 // isLikelyMusicTrack tries to detect if a search result looks like a normal song
 // and not a full episode, cartoon block, gameplay, podcast, etc.
-func isLikelyMusicTrack(t utils.MusicTrack) bool {
+func isLikelyMusicTrack(t utils.MusicTrack, langHint string) bool {
 	title := strings.ToLower(strings.TrimSpace(t.Title))
 	channel := strings.ToLower(strings.TrimSpace(t.Channel))
 	combined := title + " " + channel
@@ -681,7 +693,13 @@ func isLikelyMusicTrack(t utils.MusicTrack) bool {
 		"gameplay", "walkthrough", "let's play", "highlights", "live stream",
 		"podcast", "talk show", "behind the scenes", "interview",
 		"commercials", "ads", "advertisement",
-		"full movie", "movie clip", "trailer", "teaser",
+		// Movie / non-music
+		"full movie", "movie clip", "movie scene", "movie scenes", "scene", "scenes", "dialogue", "dialogues",
+		// News / conflict / violence (common autoplay drift issue)
+		"news", "breaking", "live news", "update", "war", "battle", "fight", "fighting", "attack",
+		"iran", "israel", "gaza", "palestine", "hamas", "ukraine", "russia",
+		// Promos
+		"trailer", "teaser",
 	}
 	for _, w := range badKeywords {
 		if strings.Contains(combined, w) {
@@ -689,17 +707,128 @@ func isLikelyMusicTrack(t utils.MusicTrack) bool {
 		}
 	}
 
-	// Reuse the global song duration limit to avoid very long videos.
-	if t.Duration > int(config.Conf.SongDurationLimit) {
+	// Autoplay needs to be stricter than manual playback: it should bias toward
+	// "normal song length" to avoid drifting into long videos (movies, debates, etc.).
+	// Default upper bound is 15 minutes, but if the global duration limit is set
+	// lower, respect that.
+	maxDur := int64(15 * 60)
+	if config.Conf != nil && config.Conf.SongDurationLimit > 0 && config.Conf.SongDurationLimit < maxDur {
+		maxDur = config.Conf.SongDurationLimit
+	}
+	if t.Duration > 0 && int64(t.Duration) > maxDur {
 		return false
 	}
 
 	// Also skip ultra‑short clips that are unlikely to be full songs.
-	if t.Duration > 0 && t.Duration < 30 {
+	if t.Duration > 0 && t.Duration < 45 {
+		return false
+	}
+
+	// If we can infer language from the currently playing track (e.g. bhojpuri),
+	// keep autoplay in the same language lane to avoid unrelated suggestions.
+	if langHint != "" && !matchesAutoplayLanguageHint(langHint, t.Title, t.Channel) {
 		return false
 	}
 
 	return true
+}
+
+func dedupeAutoplayQueries(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, q := range in {
+		q = strings.TrimSpace(q)
+		if q == "" {
+			continue
+		}
+		key := strings.ToLower(q)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, q)
+	}
+	return out
+}
+
+// detectAutoplayLanguageHint returns a short language tag to bias autoplay.
+// It's intentionally heuristic-based and only returns a value when we're confident.
+func detectAutoplayLanguageHint(title, channel string) string {
+	s := strings.ToLower(strings.TrimSpace(title + " " + channel))
+	type hint struct {
+		tag   string
+		words []string
+	}
+	hints := []hint{
+		{tag: "bhojpuri", words: []string{"bhojpuri", "भोजपुरी"}},
+		{tag: "hindi", words: []string{"hindi", "हिंदी"}},
+		{tag: "punjabi", words: []string{"punjabi", "ਪੰਜਾਬੀ"}},
+		{tag: "tamil", words: []string{"tamil", "தமிழ்"}},
+		{tag: "telugu", words: []string{"telugu", "తెలుగు"}},
+		{tag: "malayalam", words: []string{"malayalam", "മലയാളം"}},
+		{tag: "kannada", words: []string{"kannada", "ಕನ್ನಡ"}},
+		{tag: "bengali", words: []string{"bengali", "bangla", "বাংলা"}},
+		{tag: "marathi", words: []string{"marathi", "मराठी"}},
+		{tag: "gujarati", words: []string{"gujarati", "ગુજરાતી"}},
+		{tag: "urdu", words: []string{"urdu", "اردو"}},
+		{tag: "arabic", words: []string{"arabic", "العربية", "عربي"}},
+		{tag: "persian", words: []string{"persian", "farsi", "فارسی"}},
+		{tag: "hebrew", words: []string{"hebrew", "עברית"}},
+	}
+	for _, h := range hints {
+		for _, w := range h.words {
+			if strings.Contains(s, strings.ToLower(w)) {
+				return h.tag
+			}
+		}
+	}
+	return ""
+}
+
+func matchesAutoplayLanguageHint(langHint, title, channel string) bool {
+	combined := strings.ToLower(strings.TrimSpace(title + " " + channel))
+
+	containsAny := func(needles []string) bool {
+		for _, n := range needles {
+			if strings.Contains(combined, strings.ToLower(n)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	switch langHint {
+	case "bhojpuri":
+		return containsAny([]string{"bhojpuri", "भोजपुरी"})
+	case "hindi":
+		return containsAny([]string{"hindi", "हिंदी"})
+	case "punjabi":
+		return containsAny([]string{"punjabi", "ਪੰਜਾਬੀ"})
+	case "tamil":
+		return containsAny([]string{"tamil", "தமிழ்"})
+	case "telugu":
+		return containsAny([]string{"telugu", "తెలుగు"})
+	case "malayalam":
+		return containsAny([]string{"malayalam", "മലയാളം"})
+	case "kannada":
+		return containsAny([]string{"kannada", "ಕನ್ನಡ"})
+	case "bengali":
+		return containsAny([]string{"bengali", "bangla", "বাংলা"})
+	case "marathi":
+		return containsAny([]string{"marathi", "मराठी"})
+	case "gujarati":
+		return containsAny([]string{"gujarati", "ગુજરાતી"})
+	case "urdu":
+		return containsAny([]string{"urdu", "اردو"})
+	case "arabic":
+		return containsAny([]string{"arabic", "العربية", "عربي"})
+	case "persian":
+		return containsAny([]string{"persian", "farsi", "فارسی"})
+	case "hebrew":
+		return containsAny([]string{"hebrew", "עברית"})
+	default:
+		return true
+	}
 }
 
 // SeekStream jumps to a specific time in the current media stream.
