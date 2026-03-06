@@ -19,6 +19,7 @@ type ChatData struct {
 	History       []string // history of track IDs
 	HistoryTitles []string // history of normalized song titles to avoid repeating the same song
 	AutoplayLeft  int      // remaining autoplay songs for the current chain; -1 means not started
+	LastLangHint  string   // best-effort language hint to keep autoplay in the same lane
 }
 
 // ChatCacher is a thread-safe cache that manages music queues for multiple chats.
@@ -48,6 +49,36 @@ func (c *ChatCacher) AddSong(chatID int64, song *utils.CachedTrack) int {
 
 	data.Queue = append(data.Queue, song)
 	return len(data.Queue)
+}
+
+// SetLastLangHint stores a best-effort language hint for autoplay in this chat.
+// This helps when current titles are romanized and don't explicitly mention the language.
+func (c *ChatCacher) SetLastLangHint(chatID int64, hint string) {
+	if hint == "" {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		data = &ChatData{Queue: []*utils.CachedTrack{}, AutoplayLeft: -1}
+		c.chatCache[chatID] = data
+	}
+	data.LastLangHint = hint
+}
+
+// GetLastLangHint returns the last stored autoplay language hint for this chat (if any).
+func (c *ChatCacher) GetLastLangHint(chatID int64) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		return ""
+	}
+	return data.LastLangHint
 }
 
 // AddSongs adds multiple songs to a chat's queue. If the chat does not exist, it creates a new one.

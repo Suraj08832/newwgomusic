@@ -21,15 +21,8 @@ package vc
 import "C"
 
 import (
-	"suraj08832/tgmusic/config"
-	"suraj08832/tgmusic/src/core"
-	"suraj08832/tgmusic/src/utils"
-	"suraj08832/tgmusic/src/vc/ntgcalls"
-	"suraj08832/tgmusic/src/vc/sessions"
-	"suraj08832/tgmusic/src/vc/ubot"
 	"context"
 	"crypto/rand"
-	"time"
 	"errors"
 	"fmt"
 	"log"
@@ -38,6 +31,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"suraj08832/tgmusic/config"
+	"suraj08832/tgmusic/src/core"
+	"suraj08832/tgmusic/src/utils"
+	"suraj08832/tgmusic/src/vc/ntgcalls"
+	"suraj08832/tgmusic/src/vc/sessions"
+	"suraj08832/tgmusic/src/vc/ubot"
+	"time"
 
 	"suraj08832/tgmusic/src/core/cache"
 	"suraj08832/tgmusic/src/core/db"
@@ -325,6 +325,9 @@ func (c *TelegramCalls) tryAutoplay(chatID int64) bool {
 	defer searchCancel()
 
 	langHint := detectAutoplayLanguageHint(currentSong.Name, currentSong.Channel)
+	if langHint == "" {
+		langHint = cache.ChatCache.GetLastLangHint(chatID)
+	}
 
 	// Build a set of queries to try, prioritizing:
 	//  1) Artist/singer name (to get other songs from that artist)
@@ -497,6 +500,11 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	}
 	if normTitle := normalizeTitleForAutoplay(song.Name); normTitle != "" {
 		cache.ChatCache.MarkTitlePlayed(chatID, normTitle)
+	}
+	// Store a best-effort language hint for autoplay (chat-scoped).
+	// Only overwrite when we can confidently infer a language.
+	if hint := detectAutoplayLanguageHint(song.Name, song.Channel); hint != "" {
+		cache.ChatCache.SetLastLangHint(chatID, hint)
 	}
 
 	if song.Duration == 0 {
@@ -797,37 +805,193 @@ func matchesAutoplayLanguageHint(langHint, title, channel string) bool {
 		return false
 	}
 
+	// First: accept when there is an explicit match (fast path).
 	switch langHint {
 	case "bhojpuri":
-		return containsAny([]string{"bhojpuri", "भोजपुरी"})
+		if containsAny([]string{"bhojpuri", "भोजपुरी"}) {
+			return true
+		}
 	case "hindi":
-		return containsAny([]string{"hindi", "हिंदी"})
+		if containsAny([]string{"hindi", "हिंदी"}) {
+			return true
+		}
 	case "punjabi":
-		return containsAny([]string{"punjabi", "ਪੰਜਾਬੀ"})
+		if containsAny([]string{"punjabi", "ਪੰਜਾਬੀ"}) {
+			return true
+		}
 	case "tamil":
-		return containsAny([]string{"tamil", "தமிழ்"})
+		if containsAny([]string{"tamil", "தமிழ்"}) {
+			return true
+		}
 	case "telugu":
-		return containsAny([]string{"telugu", "తెలుగు"})
+		if containsAny([]string{"telugu", "తెలుగు"}) {
+			return true
+		}
 	case "malayalam":
-		return containsAny([]string{"malayalam", "മലയാളം"})
+		if containsAny([]string{"malayalam", "മലയാളം"}) {
+			return true
+		}
 	case "kannada":
-		return containsAny([]string{"kannada", "ಕನ್ನಡ"})
+		if containsAny([]string{"kannada", "ಕನ್ನಡ"}) {
+			return true
+		}
 	case "bengali":
-		return containsAny([]string{"bengali", "bangla", "বাংলা"})
+		if containsAny([]string{"bengali", "bangla", "বাংলা"}) {
+			return true
+		}
 	case "marathi":
-		return containsAny([]string{"marathi", "मराठी"})
+		if containsAny([]string{"marathi", "मराठी"}) {
+			return true
+		}
 	case "gujarati":
-		return containsAny([]string{"gujarati", "ગુજરાતી"})
+		if containsAny([]string{"gujarati", "ગુજરાતી"}) {
+			return true
+		}
 	case "urdu":
-		return containsAny([]string{"urdu", "اردو"})
+		if containsAny([]string{"urdu", "اردو"}) {
+			return true
+		}
 	case "arabic":
-		return containsAny([]string{"arabic", "العربية", "عربي"})
+		if containsAny([]string{"arabic", "العربية", "عربي"}) {
+			return true
+		}
 	case "persian":
-		return containsAny([]string{"persian", "farsi", "فارسی"})
+		if containsAny([]string{"persian", "farsi", "فارسی"}) {
+			return true
+		}
 	case "hebrew":
-		return containsAny([]string{"hebrew", "עברית"})
+		if containsAny([]string{"hebrew", "עברית"}) {
+			return true
+		}
 	default:
 		return true
+	}
+
+	// Second: reject content that clearly belongs to other languages/scripts.
+	// This prevents "Hindi -> Sinhala" drift even when titles are romanized.
+	if containsAny([]string{"sinhala", "සිංහල", "සින්හල"}) {
+		return false
+	}
+	if containsAny([]string{"tamil", "தமிழ்"}) && langHint != "tamil" {
+		return false
+	}
+	if containsAny([]string{"telugu", "తెలుగు"}) && langHint != "telugu" {
+		return false
+	}
+	if containsAny([]string{"malayalam", "മലയാളം"}) && langHint != "malayalam" {
+		return false
+	}
+	if containsAny([]string{"kannada", "ಕನ್ನಡ"}) && langHint != "kannada" {
+		return false
+	}
+	if containsAny([]string{"punjabi", "ਪੰਜਾਬੀ"}) && langHint != "punjabi" {
+		return false
+	}
+	if containsAny([]string{"bengali", "bangla", "বাংলা"}) && langHint != "bengali" {
+		return false
+	}
+	if containsAny([]string{"gujarati", "ગુજરાતી"}) && langHint != "gujarati" {
+		return false
+	}
+	if containsAny([]string{"urdu", "اردو"}) && langHint != "urdu" {
+		return false
+	}
+	if containsAny([]string{"arabic", "العربية", "عربي"}) && langHint != "arabic" {
+		return false
+	}
+	if containsAny([]string{"persian", "farsi", "فارسی"}) && langHint != "persian" {
+		return false
+	}
+	if containsAny([]string{"hebrew", "עברית"}) && langHint != "hebrew" {
+		return false
+	}
+
+	// Script-based rejection (covers many cases where language keywords are absent).
+	script := detectAutoplayScript(combined)
+	switch langHint {
+	case "hindi", "bhojpuri", "marathi":
+		// Allow latin and Devanagari for these; reject clearly different scripts.
+		if script == "sinhala" || script == "tamil" || script == "telugu" || script == "malayalam" || script == "kannada" || script == "bengali" || script == "gujarati" || script == "gurmukhi" || script == "arabic" || script == "hebrew" {
+			return false
+		}
+	case "punjabi":
+		if script != "" && script != "latin" && script != "gurmukhi" {
+			return false
+		}
+	case "tamil":
+		if script != "" && script != "latin" && script != "tamil" {
+			return false
+		}
+	case "telugu":
+		if script != "" && script != "latin" && script != "telugu" {
+			return false
+		}
+	case "malayalam":
+		if script != "" && script != "latin" && script != "malayalam" {
+			return false
+		}
+	case "kannada":
+		if script != "" && script != "latin" && script != "kannada" {
+			return false
+		}
+	case "bengali":
+		if script != "" && script != "latin" && script != "bengali" {
+			return false
+		}
+	case "gujarati":
+		if script != "" && script != "latin" && script != "gujarati" {
+			return false
+		}
+	case "urdu", "arabic", "persian":
+		if script != "" && script != "latin" && script != "arabic" {
+			return false
+		}
+	case "hebrew":
+		if script != "" && script != "latin" && script != "hebrew" {
+			return false
+		}
+	}
+
+	return true
+}
+
+// detectAutoplayScript returns a best-effort script label for a given string.
+// It returns "" when it can't confidently detect a script (e.g., pure latin).
+func detectAutoplayScript(s string) string {
+	has := func(from, to rune) bool {
+		for _, r := range s {
+			if r >= from && r <= to {
+				return true
+			}
+		}
+		return false
+	}
+
+	switch {
+	case has('\u0D80', '\u0DFF'):
+		return "sinhala"
+	case has('\u0B80', '\u0BFF'):
+		return "tamil"
+	case has('\u0C00', '\u0C7F'):
+		return "telugu"
+	case has('\u0D00', '\u0D7F'):
+		return "malayalam"
+	case has('\u0C80', '\u0CFF'):
+		return "kannada"
+	case has('\u0980', '\u09FF'):
+		return "bengali"
+	case has('\u0A80', '\u0AFF'):
+		return "gujarati"
+	case has('\u0A00', '\u0A7F'):
+		return "gurmukhi"
+	case has('\u0900', '\u097F'):
+		return "devanagari"
+	case has('\u0590', '\u05FF'):
+		return "hebrew"
+	case has('\u0600', '\u06FF') || has('\u0750', '\u077F'):
+		return "arabic"
+	default:
+		return ""
 	}
 }
 
