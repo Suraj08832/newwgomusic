@@ -196,6 +196,18 @@ func (y *YouTubeData) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
 		return utils.TrackInfo{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
+	// Fast-path for known YouTube URLs: extract ID directly and avoid
+	// relying on search responses that can intermittently return empty.
+	normalized := y.normalizeYouTubeURL(y.Query)
+	videoID := y.extractVideoID(normalized)
+	if videoID != "" {
+		return utils.TrackInfo{
+			Id:       videoID,
+			URL:      normalized,
+			Platform: utils.YouTube,
+		}, nil
+	}
+
 	if y.ApiUrl != "" && y.APIKey != "" {
 		if trackInfo, err := NewApiData(y.Query).GetTrack(ctx); err == nil {
 			return trackInfo, nil
