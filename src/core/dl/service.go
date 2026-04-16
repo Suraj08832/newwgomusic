@@ -9,9 +9,11 @@
 package dl
 
 import (
+	"net/url"
 	"suraj08832/tgmusic/config"
 	"suraj08832/tgmusic/src/utils"
 	"context"
+	"strings"
 )
 
 // MusicService defines a standard interface for interacting with various music services.
@@ -37,6 +39,7 @@ type DownloaderWrapper struct {
 
 // NewDownloaderWrapper selects the appropriate MusicService based on the query format or configuration defaults.
 func NewDownloaderWrapper(query string) *DownloaderWrapper {
+	query = normalizeShrutiStreamURL(query)
 	yt := NewYouTubeData(query)
 	api := NewApiData(query)
 	direct := NewDirectLink(query)
@@ -60,6 +63,49 @@ func NewDownloaderWrapper(query string) *DownloaderWrapper {
 		Query:   query,
 		Service: chosen,
 	}
+}
+
+// normalizeShrutiStreamURL converts shrutibots stream links (audio/video) to YouTube URLs.
+func normalizeShrutiStreamURL(query string) string {
+	trimmed := strings.TrimSpace(query)
+	if trimmed == "" {
+		return trimmed
+	}
+
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		return trimmed
+	}
+
+	if !strings.EqualFold(u.Hostname(), "shrutibots.site") {
+		return trimmed
+	}
+
+	path := strings.Trim(u.Path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "stream") {
+		return trimmed
+	}
+
+	// Explicitly support both type=audio and type=video stream URLs.
+	if mediaType := strings.ToLower(strings.TrimSpace(u.Query().Get("type"))); mediaType != "" {
+		if mediaType != "audio" && mediaType != "video" {
+			return trimmed
+		}
+	}
+
+	videoID := strings.TrimSpace(parts[1])
+	if len(videoID) != 11 {
+		return trimmed
+	}
+
+	for _, r := range videoID {
+		if !(r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z')) {
+			return trimmed
+		}
+	}
+
+	return "https://www.youtube.com/watch?v=" + videoID
 }
 
 // IsValid checks if the underlying service can handle the query.

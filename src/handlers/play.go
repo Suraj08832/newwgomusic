@@ -51,6 +51,7 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	var err error
 
 	input := coalesce(url, args)
+	hasURLInput := strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://")
 
 	if strings.HasPrefix(input, "tgpl_") {
 		ctx, cancel := db.Ctx()
@@ -110,7 +111,7 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	}
 
 	wrapper := dl.NewDownloaderWrapper(input)
-	if url != "" {
+	if hasURLInput {
 		if !wrapper.IsValid() {
 			_, _ = updater.Edit("❌ Invalid URL or unsupported platform.\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
 			return telegram.ErrEndGroup

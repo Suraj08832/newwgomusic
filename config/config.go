@@ -43,7 +43,7 @@ func LoadConfig() error {
 		MaxFileSize:       getEnvInt64("MAX_FILE_SIZE"),
 		SongDurationLimit: getEnvInt64("SONG_DURATION_LIMIT"),
 		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "downloads"),
-		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/DOSTANA_HUB"),
+		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/yaaroo_ka_kafila"),
 		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/+-k19xwGnFg1mNzUx"),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
 		Port:              getEnvStr("PORT", "6060"),
