@@ -73,6 +73,8 @@ const (
 
 	// Fallback API URL
 	fallbackAPIURL = "https://shrutibots.site"
+	// Last-resort direct stream fallback API URL
+	railwayStreamAPIURL = "https://kiru-bot.up.railway.app"
 )
 
 var (
@@ -264,10 +266,15 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 		}
 	}
 
-	// Download using API (https://shrutibots.site)
+	// Download using primary fallback API (https://shrutibots.site)
 	filePath, apiErr := downloadViaFallbackAPI(ctx, info.Id, video)
 	if apiErr != nil || filePath == "" {
-		return "", fmt.Errorf("API download failed: %w", apiErr)
+		log.Printf("[YouTube] Primary API failed for %s: %v", info.Id, apiErr)
+		// Last-resort: try direct Railway stream endpoint.
+		filePath, apiErr = downloadViaRailwayAPI(ctx, info.Id, video)
+		if apiErr != nil || filePath == "" {
+			return "", fmt.Errorf("all API fallbacks failed: %w", apiErr)
+		}
 	}
 
 	log.Printf("[YouTube] Successfully downloaded via API: %s", info.Id)
@@ -595,6 +602,73 @@ func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (
 	}
 
 	return "", fmt.Errorf("stream returned status code: %d", resp2.StatusCode)
+}
+
+// downloadViaRailwayAPI downloads media from direct Railway stream endpoint.
+// This is used as a last-resort fallback when other APIs fail.
+func downloadViaRailwayAPI(ctx context.Context, videoID string, isVideo bool) (string, error) {
+	if videoID == "" || len(videoID) < 3 {
+		return "", errors.New("invalid video ID")
+	}
+
+	mediaType := "audio"
+	ext := "mp3"
+	if isVideo {
+		mediaType = "video"
+		ext = "mp4"
+	}
+
+	filePath := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%s.%s", videoID, ext))
+	if stat, err := os.Stat(filePath); err == nil && stat.Size() > 0 {
+		return filePath, nil
+	}
+
+	if err := os.MkdirAll(config.Conf.DownloadsDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create downloads directory: %w", err)
+	}
+
+	streamURL := fmt.Sprintf("%s/stream/%s?type=%s", strings.TrimRight(railwayStreamAPIURL, "/"), url.QueryEscape(videoID), mediaType)
+
+	timeout := 300 * time.Second
+	if isVideo {
+		timeout = 600 * time.Second
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, streamURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create stream request: %w", err)
+	}
+
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("stream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("stream returned status code: %d", resp.StatusCode)
+	}
+
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	defer outFile.Close()
+
+	buffer := make([]byte, 16384)
+	if _, err := io.CopyBuffer(outFile, resp.Body, buffer); err != nil {
+		os.Remove(filePath)
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	if stat, err := os.Stat(filePath); err != nil || stat.Size() == 0 {
+		os.Remove(filePath)
+		return "", errors.New("downloaded file is empty or missing")
+	}
+
+	log.Printf("[YouTube] Successfully downloaded via Railway fallback: %s", videoID)
+	return filePath, nil
 }
 
 // downloadWithApi downloads a track using the external API.
