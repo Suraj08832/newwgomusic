@@ -48,27 +48,29 @@ const (
 # https://curl.haxx.se/rfc/cookie_spec.html
 # This is a generated file! Do not edit.
 
-.youtube.com	TRUE	/	TRUE	1786820619	PREF	f4=4000000&tz=Asia.Calcutta&f7=100
-.youtube.com	TRUE	/	FALSE	1786718362	HSID	AZ6Ss-N5G7ikI8GJG
-.youtube.com	TRUE	/	TRUE	1786718362	SSID	ANr7N4jTducFotrlc
-.youtube.com	TRUE	/	FALSE	1786718362	APISID	E8SWJGBv2CN8NCd7/AWI75uMLfeTuF5AO3
-.youtube.com	TRUE	/	TRUE	1786718362	SAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
-.youtube.com	TRUE	/	TRUE	1786718362	__Secure-1PAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
-.youtube.com	TRUE	/	TRUE	1786718362	__Secure-3PAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
+.youtube.com	TRUE	/	TRUE	1792856788	PREF	f4=4000000&tz=Asia.Calcutta&f7=100
+.youtube.com	TRUE	/	FALSE	1791981241	HSID	AZ6Ss-N5G7ikI8GJG
+.youtube.com	TRUE	/	TRUE	1791981241	SSID	ANr7N4jTducFotrlc
+.youtube.com	TRUE	/	FALSE	1791981241	APISID	E8SWJGBv2CN8NCd7/AWI75uMLfeTuF5AO3
+.youtube.com	TRUE	/	TRUE	1791981241	SAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
+.youtube.com	TRUE	/	TRUE	1791981241	__Secure-1PAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
+.youtube.com	TRUE	/	TRUE	1791981241	__Secure-3PAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
 .youtube.com	TRUE	/	TRUE	1786293217	LOGIN_INFO	AFmmF2swRAIgaPpnC3x0PEJjjygxg1T6UblT-_FPz5DwDBwO0Bgk5AECICwnHi_IWgt6kCUDuA6qirMHDCzZzfLB3CIXKtLrWcUB:QUQ3MjNmeGN5N3VKY1NsSjduRC1UMUZQRko0d0ZUbzBKU2doY3paU1lxN2NHNWtVM3hKaUx0a00zLU93U3pZdS13MFdwZ1FsWFU1aXhxR2phNnFMQzJYZVFVQkNnYXFyeVVoZ1RXaDE3NTJWd3R1bFNUUTVmMUxrVkJXSW5OX0g2bWE2UkFObDMwRjVVdGtoMXNWUzNCRXlUU3l5UjBNLXhR
-.youtube.com	TRUE	/	FALSE	1786718362	SID	g.a0006wjx1HfRgmPsuDDr85_KNQTldgh0jdNPKTFnTdv7yJLZg0wJHVkLOJbwzN782u8xTK8HowACgYKAS8SAQwSFQHGX2MiESB1Q1A7VrgDDZrme0eobhoVAUF8yKoLY4r3fTH_Htmh2UvS3x-h0076
-.youtube.com	TRUE	/	TRUE	1786718362	__Secure-1PSID	g.a0006wjx1HfRgmPsuDDr85_KNQTldgh0jdNPKTFnTdv7yJLZg0wJer-x7L1qKDlN_ZbQxnl3AAACgYKAQUSAQwSFQHGX2Mi0Yo06uVBE80l2EJ468oP5hoVAUF8yKr_9FGoK6gF3YRNsPM3wCtX0076
-.youtube.com	TRUE	/	TRUE	1786718362	__Secure-3PSID	g.a0006wjx1HfRgmPsuDDr85_KNQTldgh0jdNPKTFnTdv7yJLZg0wJ1lUP5q5azEOelXLuAERLfgACgYKAZASAQwSFQHGX2MibyfTY9WGSjbonhNQhJt8zxoVAUF8yKqGPk0vZyQ2xvuOeVOsxlc30076
+.youtube.com	TRUE	/	TRUE	1791184124	__Secure-BUCKET	COYD
+.youtube.com	TRUE	/	FALSE	1791981241	SID	g.a0009Ajx1JiSOvPa0neU5prt20muOtTH2Z4cE5kXKV6Q6_2JkWgBbk5yr3Rh_I06pwlAq2tdEwACgYKAdwSARESFQHGX2MiMEYZMN1hDk2d4qVS8bGrBhoVAUF8yKrlr9dMJI2gM8RnZQs2aqWw0076
+.youtube.com	TRUE	/	TRUE	1791981241	__Secure-1PSID	g.a0009Ajx1JiSOvPa0neU5prt20muOtTH2Z4cE5kXKV6Q6_2JkWgB3wahhXq8SqpIOywIYskMHAACgYKAdkSARESFQHGX2Mis7JLfpwOJPuWR88wVlybBhoVAUF8yKpxF28fiBXj8NeCXBMTwtlk0076
+.youtube.com	TRUE	/	TRUE	1791981241	__Secure-3PSID	g.a0009Ajx1JiSOvPa0neU5prt20muOtTH2Z4cE5kXKV6Q6_2JkWgB9UXkZTxEhnR7_rdhhYlIzgACgYKAZ8SARESFQHGX2Mi6strE2uAz_6siIJEx57R6RoVAUF8yKrMJDLfrMa76AvRCfAOfckd0076
 .youtube.com	TRUE	/	TRUE	0	wide	1
-.youtube.com	TRUE	/	TRUE	1786822560	__Secure-1PSIDTS	sidts-CjQBBj1CYuO6hzOzM3nDqL6N41qlkM220nBs7zeAmFpxfG8zMX4Rb0zzvAwVEa_7NTpspUEbEAA
-.youtube.com	TRUE	/	TRUE	1786822560	__Secure-3PSIDTS	sidts-CjQBBj1CYuO6hzOzM3nDqL6N41qlkM220nBs7zeAmFpxfG8zMX4Rb0zzvAwVEa_7NTpspUEbEAA
-.youtube.com	TRUE	/	FALSE	1786822560	SIDCC	AKEyXzVnjirDlQBJxhH-_0X_kj-XsraOSqHZgRbpteY5HkFAxxmOJpEMv0OKLAsEOKGZX2-OU_U
-.youtube.com	TRUE	/	TRUE	1786822560	__Secure-1PSIDCC	AKEyXzU5m1uKA7I6h-FpMCqSimonTzHWB0fGlIgo1RsQdOXYmFkqisKr7Sdq8lb-y9V-PuPgPA
-.youtube.com	TRUE	/	TRUE	1786822560	__Secure-3PSIDCC	AKEyXzViWrHfxba5jfA8-OzxyBMjQ6ENUw_kZxlMCnL9IQ63KDIPwB3zj45LsSLT4qCUDF6zLcc
-.youtube.com	TRUE	/	TRUE	1786812677	VISITOR_INFO1_LIVE	bm_Jiq98kyw
-.youtube.com	TRUE	/	TRUE	1786812677	VISITOR_PRIVACY_METADATA	CgJJThIEGgAgTA%3D%3D
-.youtube.com	TRUE	/	TRUE	1786812676	__Secure-ROLLOUT_TOKEN	CO_2k4e6_-LopgEQ6dPNo5bzigMY563inbzekgM%3D
-.youtube.com	TRUE	/	TRUE	0	YSC	5s-aghU19mk
+.youtube.com	TRUE	/	TRUE	1792854397	NID	531=O2WR5sbnuF-kVIcIKN4wMx42NHkGv7EvZ9xOsZuZT4hQc1hqbrZr6WiQSHu63PeQayyWj4DKPzr2pGE9mQuTX42IxwjeQLzBRhuwNqZwgAWEUai1bc7XaRO9QcTg4dM8pC-KnwM1LsxCXORAUZnn8x3mevJMuhTcwRanUYC__KBDQK01O7YDt_z6dORe86HkZ5de3E0JY8FAuD9nD_QTXqQyP89s_Orax37FQm0cnClnuok
+.youtube.com	TRUE	/	TRUE	1792856787	__Secure-1PSIDTS	sidts-CjQBhkeRdyln4s5c8EhmM99l-zHzsiiHtCHAGGEtdf1KjvJFb_b2OWF3oZObJw28BhBNtyKGEAA
+.youtube.com	TRUE	/	TRUE	1792856787	__Secure-3PSIDTS	sidts-CjQBhkeRdyln4s5c8EhmM99l-zHzsiiHtCHAGGEtdf1KjvJFb_b2OWF3oZObJw28BhBNtyKGEAA
+.youtube.com	TRUE	/	FALSE	1792856788	SIDCC	AKEyXzXioecZunaAmKH7eD18EdnyFfOnVzxB3DSVNe58W27Qmy9FDDBhKYO4Q7wVm7ikMdp4lT8
+.youtube.com	TRUE	/	TRUE	1792856788	__Secure-1PSIDCC	AKEyXzVM_jtI1lmSPDBgohLoE3xN-AKn0J12khNkArNfLHyUEVd127gB-68ep6R3oRTJq2KCAw
+.youtube.com	TRUE	/	TRUE	1792856788	__Secure-3PSIDCC	AKEyXzXVQFfEwXST7j0KPL7PqZSMvxle47Fos-hhEJoColFdYSwvhPUIaaB5wnQnXmGpH_CF8T8
+.youtube.com	TRUE	/	TRUE	1792856788	VISITOR_INFO1_LIVE	bm_Jiq98kyw
+.youtube.com	TRUE	/	TRUE	1792856788	VISITOR_PRIVACY_METADATA	CgJJThIEGgAgTA%3D%3D
+.youtube.com	TRUE	/	TRUE	1792841218	__Secure-ROLLOUT_TOKEN	CO_2k4e6_-LopgEQ6dPNo5bzigMY6O_fqPaNlAM%3D
+.youtube.com	TRUE	/	TRUE	0	YSC	h2p4vefw_Gc
 `
 
 	// Fallback API URL
@@ -266,14 +268,21 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 		}
 	}
 
-	// Download using primary fallback API (https://shrutibots.site)
-	filePath, apiErr := downloadViaFallbackAPI(ctx, info.Id, video)
-	if apiErr != nil || filePath == "" {
-		log.Printf("[YouTube] Primary API failed for %s: %v", info.Id, apiErr)
-		// Last-resort: try direct Railway stream endpoint.
-		filePath, apiErr = downloadViaRailwayAPI(ctx, info.Id, video)
+	// 1) First priority: download using yt-dlp with cookies.
+	filePath, ytErr := y.downloadWithYtDlp(ctx, info.Id, video)
+	if ytErr != nil || filePath == "" {
+		log.Printf("[YouTube] Cookie/yt-dlp download failed for %s: %v", info.Id, ytErr)
+
+		// 2) Fallback: Shruti API (https://shrutibots.site)
+		filePath, apiErr := downloadViaFallbackAPI(ctx, info.Id, video)
 		if apiErr != nil || filePath == "" {
-			return "", fmt.Errorf("all API fallbacks failed: %w", apiErr)
+			log.Printf("[YouTube] Shruti API failed for %s: %v", info.Id, apiErr)
+
+			// 3) Last fallback: direct Railway stream endpoint.
+			filePath, railErr := downloadViaRailwayAPI(ctx, info.Id, video)
+			if railErr != nil || filePath == "" {
+				return "", fmt.Errorf("all download methods failed (yt-dlp/cookies, shruti API, railway API): %w", railErr)
+			}
 		}
 	}
 
