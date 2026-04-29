@@ -114,7 +114,7 @@ func (y *YouTubeData) IsValid() bool {
 
 // GetInfo retrieves metadata for a track from YouTube.
 // It returns a PlatformTracks object or an error if the information cannot be fetched.
-func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
+func (y *YouTubeData) GetInfo(ctx context.Context) (utils.PlatformTracks, error) {
 	if !y.IsValid() {
 		return utils.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
@@ -127,14 +127,54 @@ func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
 
 	// Fast-path: for direct YouTube URLs, avoid search API calls that can
 	// intermittently return empty. We already have the video ID.
+	title := videoID
+	if t, err := getYouTubeOEmbedTitle(ctx, normalized); err == nil && t != "" {
+		title = t
+	}
+
 	return utils.PlatformTracks{Results: []utils.MusicTrack{
 		{
-			Title:    videoID,
+			Title:    title,
 			Id:       videoID,
 			Url:      normalized,
 			Platform: utils.YouTube,
 		},
 	}}, nil
+}
+
+// getYouTubeOEmbedTitle fetches a lightweight title for a YouTube URL.
+// If anything fails, the caller should fall back to the video ID.
+func getYouTubeOEmbedTitle(ctx context.Context, normalizedWatchURL string) (string, error) {
+	// Example:
+	// https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=<id>&format=json
+	oembedURL := fmt.Sprintf(
+		"https://www.youtube.com/oembed?url=%s&format=json",
+		url.QueryEscape(normalizedWatchURL),
+	)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, oembedURL, nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("oembed status code: %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		Title string `json:"title"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(payload.Title), nil
 }
 
 // Search performs a search for a track on YouTube.
