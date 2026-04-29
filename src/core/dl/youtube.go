@@ -278,32 +278,46 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 	}
 
 	log.Printf("[YouTube] Successfully downloaded via API: %s", info.Id)
-	
-	// In background: Send downloaded file to logger group and cache for next time
-	if bot := getBotFromContext(ctx); bot != nil || config.Conf.LoggerId != 0 {
-		go func() {
-			// Default: cache the local downloaded file path, so next request works even
-			// without logger-group.
-			cacheValue := filePath
 
-			// If logger-group is configured, prefer caching the logger message link.
-			if bot != nil && config.Conf.LoggerId != 0 {
-				log.Printf("[YouTube] Background: Sending %s to logger group...", info.Id)
-				if link, sendErr := sendToLoggerGroup(bot, filePath, info.Id, video); sendErr == nil && link != "" {
-					cacheValue = link
-				} else {
-					log.Printf("[YouTube] Failed to send to logger group (falling back to local path cache): %v", sendErr)
+	// Cache local file path immediately (fast). This ensures "next time" works
+	// even if logger-group upload hasn't finished yet.
+	{
+		dbCtx2, cancel2 := db.Ctx()
+		defer cancel2()
+		if cacheErr := db.Instance.SetSongCache(dbCtx2, info.Id, filePath, video); cacheErr != nil {
+			log.Printf("[YouTube] Failed to cache local song for video ID %s: %v", info.Id, cacheErr)
+		} else {
+			log.Printf("[YouTube] Cached local song for video ID %s", info.Id)
+		}
+	}
+
+	// Background: after VC playback starts, send to logger group and update cache to logger-link.
+	bot := getBotFromContext(ctx)
+	if bot != nil && config.Conf.LoggerId != 0 {
+		go func(bot *tg.Client) {
+			// Wait until play starts (so we don't delay playback).
+			if ch, ok := ctx.Value("play_started").(chan struct{}); ok && ch != nil {
+				select {
+				case <-ch:
+				case <-ctx.Done():
 				}
+			}
+
+			log.Printf("[YouTube] Logger-group upload starting for %s", info.Id)
+			link, sendErr := sendToLoggerGroup(bot, filePath, info.Id, video)
+			if sendErr != nil || link == "" {
+				log.Printf("[YouTube] Failed to send to logger group: %v", sendErr)
+				return
 			}
 
 			dbCtx2, cancel2 := db.Ctx()
 			defer cancel2()
-			if cacheErr := db.Instance.SetSongCache(dbCtx2, info.Id, cacheValue, video); cacheErr != nil {
-				log.Printf("[YouTube] Failed to cache song for video ID %s: %v", info.Id, cacheErr)
+			if cacheErr := db.Instance.SetSongCache(dbCtx2, info.Id, link, video); cacheErr != nil {
+				log.Printf("[YouTube] Failed to cache logger link for video ID %s: %v", info.Id, cacheErr)
 			} else {
-				log.Printf("[YouTube] Cached song for video ID %s (next time will use cache)", info.Id)
+				log.Printf("[YouTube] Cached logger link for video ID %s", info.Id)
 			}
-		}()
+		}(bot)
 	}
 
 	return filePath, nil
