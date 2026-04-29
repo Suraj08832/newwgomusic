@@ -118,24 +118,22 @@ func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
 		return utils.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
-	y.Query = y.normalizeYouTubeURL(y.Query)
-	videoID := y.extractVideoID(y.Query)
+	normalized := y.normalizeYouTubeURL(y.Query)
+	videoID := y.extractVideoID(normalized)
 	if videoID == "" {
 		return utils.PlatformTracks{}, errors.New("unable to extract the video ID")
 	}
 
-	tracks, err := searchYouTube(videoID, 10)
-	if err != nil {
-		return utils.PlatformTracks{}, err
-	}
-
-	for _, track := range tracks {
-		if track.Id == videoID {
-			return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
-		}
-	}
-
-	return utils.PlatformTracks{}, errors.New("no video results were found")
+	// Fast-path: for direct YouTube URLs, avoid search API calls that can
+	// intermittently return empty. We already have the video ID.
+	return utils.PlatformTracks{Results: []utils.MusicTrack{
+		{
+			Title:    videoID,
+			Id:       videoID,
+			Url:      normalized,
+			Platform: utils.YouTube,
+		},
+	}}, nil
 }
 
 // Search performs a search for a track on YouTube.
