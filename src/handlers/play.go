@@ -302,7 +302,10 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 
 	if playErr != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
-		_, err = updater.Edit(playErr.Error())
+		_, editErr := updater.Edit(playErr.Error())
+		if editErr != nil {
+			logger.Warn("Edit message failed: %v", editErr)
+		}
 		return playErr
 	}
 
