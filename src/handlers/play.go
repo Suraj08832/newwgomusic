@@ -259,6 +259,7 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		Thumbnail: song.Thumbnail, TrackID: song.Id, Duration: song.Duration, Channel: song.Channel, Views: song.Views,
 		IsVideo: isVideo, Platform: song.Platform,
 	}
+	var playStarted chan struct{}
 
 	qLen := cache.ChatCache.AddSong(chatId, &saveCache)
 
@@ -276,8 +277,14 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 
-		dlResult, err := dl.DownloadSong(ctx, &saveCache, m.Client)
+		// Signal to downloader that VC playback has started.
+		// Logger-group upload/caching should run after this to keep playback fast.
+		playStarted = make(chan struct{})
+		dlCtx := context.WithValue(ctx, "play_started", playStarted)
+
+		dlResult, err := dl.DownloadSong(dlCtx, &saveCache, m.Client)
 		if err != nil {
+			close(playStarted)
 			cache.ChatCache.RemoveCurrentSong(chatId)
 			_, err = updater.Edit(fmt.Sprintf("❌ Download failed: %s", err.Error()))
 			return err
@@ -286,10 +293,17 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		saveCache.FilePath = dlResult
 	}
 
-	if err := vc.Calls.PlayMedia(chatId, saveCache.FilePath, saveCache.IsVideo, ""); err != nil {
+	playErr := vc.Calls.PlayMedia(chatId, saveCache.FilePath, saveCache.IsVideo, "")
+	// Unblock any pending logger-group upload goroutines.
+	if playStarted != nil {
+		close(playStarted)
+		playStarted = nil
+	}
+
+	if playErr != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
-		_, err = updater.Edit(err.Error())
-		return err
+		_, err = updater.Edit(playErr.Error())
+		return playErr
 	}
 
 	nowPlaying := fmt.Sprintf(
