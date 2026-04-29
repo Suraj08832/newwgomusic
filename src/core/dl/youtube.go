@@ -13,22 +13,17 @@ import (
 	"suraj08832/tgmusic/src/core/db"
 	"suraj08832/tgmusic/src/utils"
 	"context"
-	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math/big"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -43,40 +38,8 @@ type YouTubeData struct {
 }
 
 const (
-	// Hardcoded cookies as fallback
-	hardcodedCookies = `# Netscape HTTP Cookie File
-# https://curl.haxx.se/rfc/cookie_spec.html
-# This is a generated file! Do not edit.
-
-.youtube.com	TRUE	/	TRUE	1792856788	PREF	f4=4000000&tz=Asia.Calcutta&f7=100
-.youtube.com	TRUE	/	FALSE	1791981241	HSID	AZ6Ss-N5G7ikI8GJG
-.youtube.com	TRUE	/	TRUE	1791981241	SSID	ANr7N4jTducFotrlc
-.youtube.com	TRUE	/	FALSE	1791981241	APISID	E8SWJGBv2CN8NCd7/AWI75uMLfeTuF5AO3
-.youtube.com	TRUE	/	TRUE	1791981241	SAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
-.youtube.com	TRUE	/	TRUE	1791981241	__Secure-1PAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
-.youtube.com	TRUE	/	TRUE	1791981241	__Secure-3PAPISID	BSwotq3K_osWdRba/AJ07-3YcjI9m_ZicB
-.youtube.com	TRUE	/	TRUE	1786293217	LOGIN_INFO	AFmmF2swRAIgaPpnC3x0PEJjjygxg1T6UblT-_FPz5DwDBwO0Bgk5AECICwnHi_IWgt6kCUDuA6qirMHDCzZzfLB3CIXKtLrWcUB:QUQ3MjNmeGN5N3VKY1NsSjduRC1UMUZQRko0d0ZUbzBKU2doY3paU1lxN2NHNWtVM3hKaUx0a00zLU93U3pZdS13MFdwZ1FsWFU1aXhxR2phNnFMQzJYZVFVQkNnYXFyeVVoZ1RXaDE3NTJWd3R1bFNUUTVmMUxrVkJXSW5OX0g2bWE2UkFObDMwRjVVdGtoMXNWUzNCRXlUU3l5UjBNLXhR
-.youtube.com	TRUE	/	TRUE	1791184124	__Secure-BUCKET	COYD
-.youtube.com	TRUE	/	FALSE	1791981241	SID	g.a0009Ajx1JiSOvPa0neU5prt20muOtTH2Z4cE5kXKV6Q6_2JkWgBbk5yr3Rh_I06pwlAq2tdEwACgYKAdwSARESFQHGX2MiMEYZMN1hDk2d4qVS8bGrBhoVAUF8yKrlr9dMJI2gM8RnZQs2aqWw0076
-.youtube.com	TRUE	/	TRUE	1791981241	__Secure-1PSID	g.a0009Ajx1JiSOvPa0neU5prt20muOtTH2Z4cE5kXKV6Q6_2JkWgB3wahhXq8SqpIOywIYskMHAACgYKAdkSARESFQHGX2Mis7JLfpwOJPuWR88wVlybBhoVAUF8yKpxF28fiBXj8NeCXBMTwtlk0076
-.youtube.com	TRUE	/	TRUE	1791981241	__Secure-3PSID	g.a0009Ajx1JiSOvPa0neU5prt20muOtTH2Z4cE5kXKV6Q6_2JkWgB9UXkZTxEhnR7_rdhhYlIzgACgYKAZ8SARESFQHGX2Mi6strE2uAz_6siIJEx57R6RoVAUF8yKrMJDLfrMa76AvRCfAOfckd0076
-.youtube.com	TRUE	/	TRUE	0	wide	1
-.youtube.com	TRUE	/	TRUE	1792854397	NID	531=O2WR5sbnuF-kVIcIKN4wMx42NHkGv7EvZ9xOsZuZT4hQc1hqbrZr6WiQSHu63PeQayyWj4DKPzr2pGE9mQuTX42IxwjeQLzBRhuwNqZwgAWEUai1bc7XaRO9QcTg4dM8pC-KnwM1LsxCXORAUZnn8x3mevJMuhTcwRanUYC__KBDQK01O7YDt_z6dORe86HkZ5de3E0JY8FAuD9nD_QTXqQyP89s_Orax37FQm0cnClnuok
-.youtube.com	TRUE	/	TRUE	1792856787	__Secure-1PSIDTS	sidts-CjQBhkeRdyln4s5c8EhmM99l-zHzsiiHtCHAGGEtdf1KjvJFb_b2OWF3oZObJw28BhBNtyKGEAA
-.youtube.com	TRUE	/	TRUE	1792856787	__Secure-3PSIDTS	sidts-CjQBhkeRdyln4s5c8EhmM99l-zHzsiiHtCHAGGEtdf1KjvJFb_b2OWF3oZObJw28BhBNtyKGEAA
-.youtube.com	TRUE	/	FALSE	1792856788	SIDCC	AKEyXzXioecZunaAmKH7eD18EdnyFfOnVzxB3DSVNe58W27Qmy9FDDBhKYO4Q7wVm7ikMdp4lT8
-.youtube.com	TRUE	/	TRUE	1792856788	__Secure-1PSIDCC	AKEyXzVM_jtI1lmSPDBgohLoE3xN-AKn0J12khNkArNfLHyUEVd127gB-68ep6R3oRTJq2KCAw
-.youtube.com	TRUE	/	TRUE	1792856788	__Secure-3PSIDCC	AKEyXzXVQFfEwXST7j0KPL7PqZSMvxle47Fos-hhEJoColFdYSwvhPUIaaB5wnQnXmGpH_CF8T8
-.youtube.com	TRUE	/	TRUE	1792856788	VISITOR_INFO1_LIVE	bm_Jiq98kyw
-.youtube.com	TRUE	/	TRUE	1792856788	VISITOR_PRIVACY_METADATA	CgJJThIEGgAgTA%3D%3D
-.youtube.com	TRUE	/	TRUE	1792841218	__Secure-ROLLOUT_TOKEN	CO_2k4e6_-LopgEQ6dPNo5bzigMY6O_fqPaNlAM%3D
-.youtube.com	TRUE	/	TRUE	0	YSC	h2p4vefw_Gc
-`
-
-	// Fallback API URL
+	// Direct stream API URL used for play/download.
 	fallbackAPIURL = "https://shrutibots.site"
-	// Last-resort direct stream fallback API URL
-	railwayStreamAPIURL = "https://kiru-bot.up.railway.app"
 )
 
 var (
@@ -87,10 +50,6 @@ var (
 		//"yt_live":   regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/live/([\w-]{11})(?:[?#].*)?$`),
 	}
 
-	// Cache for hardcoded cookie file path
-	hardcodedCookieFile     string
-	hardcodedCookieFileOnce sync.Once
-	hardcodedCookieFileMux  sync.RWMutex
 )
 
 // NewYouTubeData initializes a YouTubeData instance with pre-compiled regex patterns and a cleaned query.
@@ -268,22 +227,9 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 		}
 	}
 
-	// 1) First priority: download using yt-dlp with cookies.
-	filePath, ytErr := y.downloadWithYtDlp(ctx, info.Id, video)
-	if ytErr != nil || filePath == "" {
-		log.Printf("[YouTube] Cookie/yt-dlp download failed for %s: %v", info.Id, ytErr)
-
-		// 2) Fallback: Shruti API (https://shrutibots.site)
-		filePath, apiErr := downloadViaFallbackAPI(ctx, info.Id, video)
-		if apiErr != nil || filePath == "" {
-			log.Printf("[YouTube] Shruti API failed for %s: %v", info.Id, apiErr)
-
-			// 3) Last fallback: direct Railway stream endpoint.
-			filePath, railErr := downloadViaRailwayAPI(ctx, info.Id, video)
-			if railErr != nil || filePath == "" {
-				return "", fmt.Errorf("all download methods failed (yt-dlp/cookies, shruti API, railway API): %w", railErr)
-			}
-		}
+	filePath, apiErr := downloadViaFallbackAPI(ctx, info.Id, video)
+	if apiErr != nil || filePath == "" {
+		return "", fmt.Errorf("direct stream download failed: %w", apiErr)
 	}
 
 	log.Printf("[YouTube] Successfully downloaded via API: %s", info.Id)
@@ -309,143 +255,7 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 	return filePath, nil
 }
 
-// buildYtdlpParams constructs the command-line parameters for yt-dlp to download media.
-func (y *YouTubeData) buildYtdlpParams(videoID string, video bool) []string {
-	outputTemplate := filepath.Join(config.Conf.DownloadsDir, "%(id)s.%(ext)s")
-
-	params := []string{
-		"yt-dlp",
-		"--no-warnings",
-		"--quiet",
-		"--geo-bypass",
-		"--retries", "2",
-		"--continue",
-		"--no-part",
-		"--concurrent-fragments", "3",
-		"--socket-timeout", "10",
-		"--throttled-rate", "100K",
-		"--retry-sleep", "1",
-		"--no-write-thumbnail",
-		"--no-write-info-json",
-		"--no-embed-metadata",
-		"--no-embed-chapters",
-		"--no-embed-subs",
-		"--extractor-args", "youtube:player_js_version=actual",
-		"-o", outputTemplate,
-	}
-
-	if video {
-		formatSelector := "bestvideo[height<=720]+bestaudio/best[height<=720]"
-		params = append(params, "-f", formatSelector, "--merge-output-format", "mp4")
-	} else {
-		params = append(params, "-f", "bestaudio[ext=m4a]/bestaudio")
-	}
-
-	if cookieFile := y.getCookieFile(); cookieFile != "" {
-		params = append(params, "--cookies", cookieFile)
-	} else if config.Conf.Proxy != "" {
-		params = append(params, "--proxy", config.Conf.Proxy)
-	}
-
-	videoURL := "https://www.youtube.com/watch?v=" + videoID
-	params = append(params, videoURL, "--print", "after_move:filepath")
-
-	return params
-}
-
-// downloadWithYtDlp downloads media from YouTube using the yt-dlp command-line tool.
-func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, video bool) (string, error) {
-	if videoID == "" {
-		return "", errors.New("videoID is empty")
-	}
-
-	ytdlpParams := y.buildYtdlpParams(videoID, video)
-	cmd := exec.CommandContext(ctx, ytdlpParams[0], ytdlpParams[1:]...)
-
-	output, err := cmd.Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			stderr := string(exitErr.Stderr)
-			return "", fmt.Errorf("yt-dlp failed with exit code %d: %s", exitErr.ExitCode(), stderr)
-		}
-
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return "", fmt.Errorf("yt-dlp timed out for video ID: %s", videoID)
-		}
-
-		return "", fmt.Errorf("an unexpected error occurred while downloading %s: %w", videoID, err)
-	}
-
-	downloadedPathStr := strings.TrimSpace(string(output))
-	if downloadedPathStr == "" {
-		return "", fmt.Errorf("no output path was returned for %s", videoID)
-	}
-
-	if _, err := os.Stat(downloadedPathStr); os.IsNotExist(err) {
-		return "", fmt.Errorf("the file was not found at the reported path: %s", downloadedPathStr)
-	}
-
-	return downloadedPathStr, nil
-}
-
-// getHardcodedCookieFile creates a temporary file with hardcoded cookies and returns its path.
-func getHardcodedCookieFile() string {
-	hardcodedCookieFileOnce.Do(func() {
-		tmpFile, err := os.CreateTemp("", "youtube_cookies_*.txt")
-		if err != nil {
-			log.Printf("Error creating hardcoded cookie file: %v", err)
-			return
-		}
-		defer tmpFile.Close()
-
-		if _, err := tmpFile.WriteString(hardcodedCookies); err != nil {
-			log.Printf("Error writing hardcoded cookies: %v", err)
-			os.Remove(tmpFile.Name())
-			return
-		}
-
-		hardcodedCookieFileMux.Lock()
-		hardcodedCookieFile = tmpFile.Name()
-		hardcodedCookieFileMux.Unlock()
-	})
-
-	hardcodedCookieFileMux.RLock()
-	defer hardcodedCookieFileMux.RUnlock()
-
-	if hardcodedCookieFile != "" {
-		if _, err := os.Stat(hardcodedCookieFile); err == nil {
-			return hardcodedCookieFile
-		}
-	}
-
-	return ""
-}
-
-// getCookieFile retrieves the path to a cookie file - prioritize hardcoded cookies first, then fallback to cookies directory.
-func (y *YouTubeData) getCookieFile() string {
-	// First try hardcoded cookies
-	if hardcoded := getHardcodedCookieFile(); hardcoded != "" {
-		return hardcoded
-	}
-
-	// Fallback to cookies directory
-	cookiesPath := config.Conf.CookiesPath
-	if len(cookiesPath) == 0 {
-		return ""
-	}
-
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(cookiesPath))))
-	if err != nil {
-		log.Printf("Could not generate a random number: %v", err)
-		return cookiesPath[0]
-	}
-
-	return cookiesPath[n.Int64()]
-}
-
-// downloadViaFallbackAPI downloads audio/video using the fallback API.
-// Returns file path on success, error on failure (will fallback to cookies).
+// downloadViaFallbackAPI downloads audio/video using Shruti's direct stream API.
 func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (string, error) {
 	if videoID == "" || len(videoID) < 3 {
 		return "", errors.New("invalid video ID")
@@ -471,45 +281,8 @@ func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (
 		return "", fmt.Errorf("failed to create downloads directory: %w", err)
 	}
 
-	apiURL := strings.TrimRight(fallbackAPIURL, "/")
+	streamURL := fmt.Sprintf("%s/stream/%s?type=%s", strings.TrimRight(fallbackAPIURL, "/"), url.QueryEscape(videoID), mediaType)
 
-	// Step 1: Get download token from API
-	downloadURL := fmt.Sprintf("%s/download", apiURL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Add query parameters (matching Python's params)
-	q := req.URL.Query()
-	q.Set("url", videoID)
-	q.Set("type", mediaType)
-	req.URL.RawQuery = q.Encode()
-
-	client := &http.Client{Timeout: 7 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("download request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API returned status code: %d", resp.StatusCode)
-	}
-
-	var data map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	downloadToken, ok := data["download_token"].(string)
-	if !ok || downloadToken == "" {
-		return "", errors.New("no download token received from API")
-	}
-
-	// Step 2: Download the file using the token (token as query parameter, not header)
-	streamURL := fmt.Sprintf("%s/stream/%s?type=%s&token=%s", apiURL, url.QueryEscape(videoID), mediaType, url.QueryEscape(downloadToken))
-	
 	timeout := 300 * time.Second
 	if isVideo {
 		timeout = 600 * time.Second
@@ -611,73 +384,6 @@ func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (
 	}
 
 	return "", fmt.Errorf("stream returned status code: %d", resp2.StatusCode)
-}
-
-// downloadViaRailwayAPI downloads media from direct Railway stream endpoint.
-// This is used as a last-resort fallback when other APIs fail.
-func downloadViaRailwayAPI(ctx context.Context, videoID string, isVideo bool) (string, error) {
-	if videoID == "" || len(videoID) < 3 {
-		return "", errors.New("invalid video ID")
-	}
-
-	mediaType := "audio"
-	ext := "mp3"
-	if isVideo {
-		mediaType = "video"
-		ext = "mp4"
-	}
-
-	filePath := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%s.%s", videoID, ext))
-	if stat, err := os.Stat(filePath); err == nil && stat.Size() > 0 {
-		return filePath, nil
-	}
-
-	if err := os.MkdirAll(config.Conf.DownloadsDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create downloads directory: %w", err)
-	}
-
-	streamURL := fmt.Sprintf("%s/stream/%s?type=%s", strings.TrimRight(railwayStreamAPIURL, "/"), url.QueryEscape(videoID), mediaType)
-
-	timeout := 300 * time.Second
-	if isVideo {
-		timeout = 600 * time.Second
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, streamURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create stream request: %w", err)
-	}
-
-	client := &http.Client{Timeout: timeout}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("stream request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("stream returned status code: %d", resp.StatusCode)
-	}
-
-	outFile, err := os.Create(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create file: %w", err)
-	}
-	defer outFile.Close()
-
-	buffer := make([]byte, 16384)
-	if _, err := io.CopyBuffer(outFile, resp.Body, buffer); err != nil {
-		os.Remove(filePath)
-		return "", fmt.Errorf("failed to write file: %w", err)
-	}
-
-	if stat, err := os.Stat(filePath); err != nil || stat.Size() == 0 {
-		os.Remove(filePath)
-		return "", errors.New("downloaded file is empty or missing")
-	}
-
-	log.Printf("[YouTube] Successfully downloaded via Railway fallback: %s", videoID)
-	return filePath, nil
 }
 
 // downloadWithApi downloads a track using the external API.
