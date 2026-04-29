@@ -13,6 +13,7 @@ import (
 	"suraj08832/tgmusic/src/core/db"
 	"suraj08832/tgmusic/src/utils"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -202,7 +203,13 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 	
 	loggerLink, err := db.Instance.GetSongCache(dbCtx, info.Id, video)
 	if err == nil && loggerLink != "" {
-		// Try to download from logger group
+		// If cached value is a local file path, return it.
+		if stat, statErr := os.Stat(loggerLink); statErr == nil && stat.Size() > 0 {
+			log.Printf("[YouTube] Mongo cache hit for video ID: %s, using local cached file: %s", info.Id, loggerLink)
+			return loggerLink, nil
+		}
+
+		// Otherwise treat it as a logger-group message link.
 		if bot := getBotFromContext(ctx); bot != nil {
 			if filePath, err := downloadFromLogger(bot, loggerLink); err == nil {
 				log.Printf("[YouTube] Cache hit for video ID: %s, using logger link: %s", info.Id, loggerLink)
@@ -233,19 +240,28 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 	log.Printf("[YouTube] Successfully downloaded via API: %s", info.Id)
 	
 	// In background: Send downloaded file to logger group and cache for next time
-	if bot := getBotFromContext(ctx); bot != nil && config.Conf.LoggerId != 0 {
+	if bot := getBotFromContext(ctx); bot != nil || config.Conf.LoggerId != 0 {
 		go func() {
-			log.Printf("[YouTube] Background: Sending %s to logger group...", info.Id)
-			if loggerLink, sendErr := sendToLoggerGroup(bot, filePath, info.Id, video); sendErr == nil {
-				dbCtx2, cancel2 := db.Ctx()
-				defer cancel2()
-				if cacheErr := db.Instance.SetSongCache(dbCtx2, info.Id, loggerLink, video); cacheErr != nil {
-					log.Printf("[YouTube] Failed to cache logger link: %v", cacheErr)
+			// Default: cache the local downloaded file path, so next request works even
+			// without logger-group.
+			cacheValue := filePath
+
+			// If logger-group is configured, prefer caching the logger message link.
+			if bot != nil && config.Conf.LoggerId != 0 {
+				log.Printf("[YouTube] Background: Sending %s to logger group...", info.Id)
+				if link, sendErr := sendToLoggerGroup(bot, filePath, info.Id, video); sendErr == nil && link != "" {
+					cacheValue = link
 				} else {
-					log.Printf("[YouTube] Cached logger link for video ID: %s (next time will use cache)", info.Id)
+					log.Printf("[YouTube] Failed to send to logger group (falling back to local path cache): %v", sendErr)
 				}
+			}
+
+			dbCtx2, cancel2 := db.Ctx()
+			defer cancel2()
+			if cacheErr := db.Instance.SetSongCache(dbCtx2, info.Id, cacheValue, video); cacheErr != nil {
+				log.Printf("[YouTube] Failed to cache song for video ID %s: %v", info.Id, cacheErr)
 			} else {
-				log.Printf("[YouTube] Failed to send to logger group: %v", sendErr)
+				log.Printf("[YouTube] Cached song for video ID %s (next time will use cache)", info.Id)
 			}
 		}()
 	}
@@ -253,7 +269,7 @@ func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, v
 	return filePath, nil
 }
 
-// downloadViaFallbackAPI downloads audio/video using Shruti's direct stream API.
+// downloadViaFallbackAPI downloads audio/video using Shruti's /download + /stream (token-based) flow.
 func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (string, error) {
 	if videoID == "" || len(videoID) < 3 {
 		return "", errors.New("invalid video ID")
@@ -279,7 +295,49 @@ func downloadViaFallbackAPI(ctx context.Context, videoID string, isVideo bool) (
 		return "", fmt.Errorf("failed to create downloads directory: %w", err)
 	}
 
-	streamURL := fmt.Sprintf("%s/stream/%s?type=%s", strings.TrimRight(fallbackAPIURL, "/"), url.QueryEscape(videoID), mediaType)
+	apiURL := strings.TrimRight(fallbackAPIURL, "/")
+
+	// Step 1: Get download token from Shruti
+	downloadURL := fmt.Sprintf("%s/download", apiURL)
+	req1, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	q := req1.URL.Query()
+	q.Set("url", videoID)
+	q.Set("type", mediaType)
+	req1.URL.RawQuery = q.Encode()
+
+	client1 := &http.Client{Timeout: 7 * time.Second}
+	resp1, err := client1.Do(req1)
+	if err != nil {
+		return "", fmt.Errorf("download request failed: %w", err)
+	}
+	defer resp1.Body.Close()
+
+	if resp1.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API returned status code: %d", resp1.StatusCode)
+	}
+
+	var data map[string]interface{}
+	if err := json.NewDecoder(resp1.Body).Decode(&data); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	downloadToken, ok := data["download_token"].(string)
+	if !ok || downloadToken == "" {
+		return "", errors.New("no download token received from API")
+	}
+
+	// Step 2: Download media using token (token as query parameter)
+	streamURL := fmt.Sprintf(
+		"%s/stream/%s?type=%s&token=%s",
+		apiURL,
+		url.QueryEscape(videoID),
+		mediaType,
+		url.QueryEscape(downloadToken),
+	)
 
 	timeout := 300 * time.Second
 	if isVideo {
